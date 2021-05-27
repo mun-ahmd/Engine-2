@@ -3,3 +3,4 @@ Engine-2.vcxproj.filters
 Engine-2.vcxproj.user
 Engine-2.sln
 .vs/*
+x64/*
