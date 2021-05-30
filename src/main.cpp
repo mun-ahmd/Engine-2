@@ -10,6 +10,6 @@ int main()
 
 	Model model;
 	model.loadModel(directory,false,true);
-
+	
 	return 1;
 }

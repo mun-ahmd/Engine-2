@@ -3,6 +3,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <iostream>
+#include "error.h"
 
 using namespace std;
 
@@ -28,7 +29,7 @@ void Mesh3::setupMesh(float* interleaved_data, size_t len)
 	//todo after graphics interface is done
 	if (len*sizeof(float) % (sizeof(Vertex3)) != 0)
 	{
-		//todo error message
+		ENGINE2_THROW_ERROR("Mesh not setup due to interleaved_data being invalid");
 		return;
 	}
 	this->data.reserve(len/(sizeof(Vertex3)/sizeof(float)));

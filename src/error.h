@@ -1,4 +1,6 @@
+#pragma once
 #include <iostream>	//only included while it uses cerr
+
 
 enum Error_Severity
 {
@@ -66,12 +68,5 @@ public:
 	}
 };
 
-static ErrorHandler ENGINE_2_ERROR_HANDLER;
 
-void ENGINE2_THROW_ERROR(const char* error_message, Error_Severity severity = LOW_SEVERITY)
-{
-	Error error;
-	error.error = error_message;
-	error.severity = severity;
-	ENGINE_2_ERROR_HANDLER.addError(error);
-}
+void ENGINE2_THROW_ERROR(const char* error_message, Error_Severity severity = LOW_SEVERITY);

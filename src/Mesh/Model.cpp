@@ -2,6 +2,7 @@
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
+#include "error.h"
 #define AI_CONFIG_PP_RVC_FLAGS aiComponent_COLORS
 #define AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE 80
 
@@ -109,8 +110,8 @@ void Model::loadModel(const char* filedirIN,bool loadTangents, bool optimizeMesh
 
     if (!scene)
     {
-        //todo errorlog
         std::string error = importer.GetErrorString();
+        ENGINE2_THROW_ERROR(error.c_str());
         return;
     }
 
