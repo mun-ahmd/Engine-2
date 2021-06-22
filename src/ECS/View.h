@@ -21,7 +21,6 @@ public:
 			arrays[i] = view_pair(arraysIN[i]->data(), arraysIN[i]->size());
 			num_elements += arrays[i].second;
 		}
-		std::cout << "Basic";
 	}
 	const T& operator [](size_t index)
 	{
@@ -63,7 +62,6 @@ public:
 	View(std::vector<T>** arraysIN)
 	{
 			array_ = arraysIN[0];
-			std::cout << "Special";
 	}
 	const T& operator [](size_t index)
 	{

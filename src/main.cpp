@@ -2,6 +2,7 @@
 #include "glm/glm.hpp"
 #include "Mesh/Model.h"
 #include "ECS/View.h"
+#include "ECS/ECS.h"
 int main()
 {
 	/*

@@ -17,39 +17,43 @@ class Entity
 {
 private:
 	//version to take 4 bits, id to take rest
-	uint32_t version_id;
+	uint32_t id_version;
 public:
 	Entity(uint32_t id)
 	{
 		if (id > ENTITY_INVALID_ID)
 			id = ENTITY_INVALID_ID;
-		version_id = (id << ENTITY_VERSION_NUM_BITS);	//start at version 0
+		id_version = (id << ENTITY_VERSION_NUM_BITS);	//start at version 0
 	}
 	bool version_valid()
 	{
-		return ((version_id & ENTITY_INVALID_VERSION) != ENTITY_INVALID_VERSION);
+		return ((id_version & ENTITY_INVALID_VERSION) != ENTITY_INVALID_VERSION);
 	}
 	bool id_valid()
 	{
-		return ((version_id & ENTITY_INVALID_ID) != ENTITY_INVALID_ID);
+		return ((id_version & ENTITY_INVALID_ID) != ENTITY_INVALID_ID);
+	}
+	uint32_t get_full_id()
+	{
+		return id_version;
 	}
 	uint32_t get_version()
 	{
-		return (version_id & ENTITY_INVALID_VERSION);
+		return (id_version & ENTITY_INVALID_VERSION);
 	}
 	uint32_t get_id()
 	{
-		return (version_id & ENTITY_INVALID_ID) >> ENTITY_VERSION_NUM_BITS;
+		return (id_version & ENTITY_INVALID_ID) >> ENTITY_VERSION_NUM_BITS;
 	}
 	//returns sucess of operation
 	//need to figure out best way to handle invalid versions
 	bool bump_version()
 	{
-		uint32_t old_version = version_id;
-		version_id = (version_id & ENTITY_INVALID_ID) | ((get_version() + 1) & ENTITY_INVALID_VERSION);
+		uint32_t old_version = id_version;
+		id_version = (id_version & ENTITY_INVALID_ID) | ((get_version() + 1) & ENTITY_INVALID_VERSION);
 		if (!version_valid())
 		{
-			version_id = old_version;
+			id_version = old_version;
 			return false;
 		}
 		return true;
@@ -69,10 +73,11 @@ enum ComponentTypes_ENG2
 	NUM_OF_COMPONENT_TYPES
 };
 
-typedef std::vector<Component> ComponentData;
 
 class Pool
 {
+typedef std::vector<Component> ComponentData;
+
 private:
 	//todo test
 	SparseArray<uint32_t> _indices;
@@ -84,15 +89,19 @@ public:
 
 	}
 };
-typedef std::unordered_map<ComponentTypes_ENG2, Pool> ComponentTypeData;
+
+
 
 struct EntityComponentDataWrapper
 {
-	//todo
+	typedef std::vector<Component> ComponentData;
+	Entity entity;
+	ComponentData component_data;
 };
 
 class ECSmanager
 {
+typedef std::unordered_map<ComponentTypes_ENG2, Pool> ComponentTypeData;
 private:
 	ComponentTypeData pool_map;
 public:
@@ -108,6 +117,7 @@ public:
 	View<EntityComponentDataWrapper,1> getEntitiesWithComponent(ComponentTypes_ENG2 type)
 	{
 		//todo
+
 	}
 	template <uint8_t num_types>
 	View<Component, num_types> getEntitiesWithAllOfComponents(ComponentTypes_ENG2* types)
