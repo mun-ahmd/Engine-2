@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>	//only included while it uses cerr
 
-
 enum Error_Severity
 {
 	HIGH_SEVERITY,

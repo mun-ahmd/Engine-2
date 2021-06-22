@@ -19,12 +19,12 @@ std::string getFileExtention(std::string filename)
 	return filename.substr(pos1 + 1, filename.size() - pos1 - 1);
 }
 
-void Mesh3::setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData, size_t len)
+void Mesh3::setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData,unsigned int* face_indices, size_t len)
 {
 	//in mesh3 additional per vertexdata is ignored completely
 }
 
-void Mesh3::setupMesh(float* interleaved_data, size_t len)
+void Mesh3::setupMesh(float* interleaved_data, unsigned int* face_indices, size_t len)
 {
 	//todo after graphics interface is done
 	if (len*sizeof(float) % (sizeof(Vertex3)) != 0)
@@ -32,6 +32,11 @@ void Mesh3::setupMesh(float* interleaved_data, size_t len)
 		ENGINE2_THROW_ERROR("Mesh not setup due to interleaved_data being invalid");
 		return;
 	}
+
+	this->indices.reserve(len / 3);
+	for (unsigned int i = 0; i < len / 3; ++i)
+		this->indices.push_back(*(face_indices + i));
+
 	this->data.reserve(len/(sizeof(Vertex3)/sizeof(float)));
 	for (size_t i = 0; i < len; ++i)
 	{

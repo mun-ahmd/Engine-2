@@ -20,9 +20,11 @@ struct VertexData
 
 class Mesh
 {
+protected:
+	std::vector<unsigned int> indices;
 public:
-	virtual void setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData, size_t len) = 0;
-	virtual void setupMesh(float* interleaved_data, size_t len) = 0;
+	virtual void setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData, unsigned int* face_indices, size_t len) = 0;
+	virtual void setupMesh(float* interleaved_data, unsigned int* face_indices, size_t len) = 0;
 	virtual VertexData getMeshData() = 0;
 };
 
@@ -41,7 +43,7 @@ private:
 	Vertex_Data_Type dataType = pos_norm_uv;
 	std::vector<Vertex3> data;
 public:
-	void setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData, size_t len);
-	void setupMesh(float* data, size_t len);
+	void setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData,unsigned int* face_indices, size_t len);
+	void setupMesh(float* data,unsigned int* face_indices, size_t len);	//only accepts triangles
 	VertexData getMeshData();
 };

@@ -69,7 +69,7 @@ Mesh* Model::processMesh(void* meshIN, bool hastangents)
         }
     }
 
-    mesh->setupMesh(&vertexDataInterleaved[0], vertexDataInterleaved.size());
+    mesh->setupMesh(&vertexDataInterleaved[0],aimesh->mFaces->mIndices, vertexDataInterleaved.size());
 
     return mesh;
 }
