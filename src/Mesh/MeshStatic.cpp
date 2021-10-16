@@ -13,6 +13,10 @@ const MultiStaticMesh& HigherGraphics::get_static_meshes_holder()
 {
 	return static_meshes_container;
 }
+void HigherGraphics::prepare_indirect_draw_buffer()
+{
+	static_meshes_container.create_indirect_draw_buffer();
+}
 
 void HigherGraphics::add_instance_of_mesh(MeshStatic* mesh, glm::vec3 position)
 {

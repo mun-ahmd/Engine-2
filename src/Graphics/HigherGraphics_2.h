@@ -142,7 +142,9 @@ private:
 	BufferMulti vertices_multi;
 	unsigned int num_meshes = 0;
 	VertexArray VAO;
+	Buffer indirect_draw_buffer;
 	Buffer transform_matrices_buffer;
+	Buffer material_ids_buffer;
 	Buffer mesh_instance_info_buffer;
 	unsigned int base_instance_vertex_attribute_index = 3;
 	unsigned int num_clusters = 0;
@@ -150,6 +152,8 @@ private:
 	const unsigned int num_triangles_per_cluster = 128;
 	const unsigned char indices_type_size = 4;
 	const unsigned short per_vertex_size = sizeof(float) * 8;
+
+	ComputeShader culling_compute = ComputeShader("CullClustersCompute.glsl");
 
 	std::vector<VertexAttribData> get_vertex_attribs()
 	{
@@ -198,14 +202,27 @@ public:
 		indices_multi = BufferMulti(max_size_index_buff);
 		VAO = VertexArray(vertices_multi.get_buffer(), indices_multi.get_buffer(), get_vertex_attribs());
 		//glVertexAttribDivisor(3, 1);
+		indirect_draw_buffer = Buffer(0, NULL, GL_ARRAY_BUFFER, true);
 		transform_matrices_buffer = Buffer(sizeof(glm::mat4) * 1000, NULL, GL_SHADER_STORAGE_BUFFER, 0, GL_STREAM_DRAW);
+		material_ids_buffer = Buffer(sizeof(unsigned int) * 1000, NULL, GL_SHADER_STORAGE_BUFFER, 0, GL_STREAM_DRAW);
 	}
 	void multi_draw() const
 	{
 		VAO.multi_draw_indirect(num_clusters, 0, 0);
 	}
-	Buffer create_indirect_draw_buffer() const
+	const Buffer& get_indirect_draw_buffer() const
 	{
+		return indirect_draw_buffer;
+	}
+
+	void compute_indirect_draw_buffer()
+	{
+
+	}
+
+	void create_indirect_draw_buffer()
+	{
+		//prepares data cpu side , no compute shader, use this for debugging
 		auto verts_offsets = vertices_multi.get_all_offsets();
 		auto indices_offsets = indices_multi.get_all_offsets();
 		size_t num_indices = indices_multi.get_used_size() / indices_type_size;
@@ -253,8 +270,8 @@ public:
 				buff_data.push_back(curr);
 			}
 		}
-
-		return Buffer(buff_data.size() * sizeof(indirect_draw_struct), buff_data.data());
+		
+		indirect_draw_buffer.new_data(buff_data.data(), buff_data.size() * sizeof(indirect_draw_struct));
 	}
 	std::pair<VertexArray, size_t> add_mesh(
 		const void* vertices_data, size_t vertices_data_size, const void* indices_data, size_t indices_data_size, std::vector<VertexAttribData> attribs
@@ -267,7 +284,10 @@ public:
 	{
 		transform_matrices_buffer.modify(&transform, sizeof(glm::mat4), vertices_multi.get_object_index(mesh->get_vao()) * sizeof(glm::mat4));
 	}
-
+	void set_mat_id(MeshStatic* mesh, unsigned int  mat_id)
+	{
+		material_ids_buffer.modify(&mat_id, sizeof(unsigned int), vertices_multi.get_object_index(mesh->get_vao()) * sizeof(unsigned int));
+	}
 
 
 	Buffer get_transform_buffer() const
@@ -280,6 +300,7 @@ class HigherGraphics
 {
 public:
 	static void initialize();
+	static void prepare_indirect_draw_buffer();
 	static const MultiStaticMesh& get_static_meshes_holder();
 	static void add_instance_of_mesh(MeshStatic* mesh, glm::vec3 position);
 };

@@ -247,8 +247,8 @@ int main()
 	//pipe.set_texture_handle("albedo", sapdpia);
 	//glUniform1ui64ARB(glGetUniformLocation(pipe.get_program(), "albedo"), sapdpia.get_handle());
 
-	
-	Buffer indirect_draw_buff = HigherGraphics::get_static_meshes_holder().create_indirect_draw_buffer();
+	HigherGraphics::prepare_indirect_draw_buffer();
+	const Buffer& indirect_draw_buff = HigherGraphics::get_static_meshes_holder().get_indirect_draw_buffer();
 	indirect_draw_buff.bind(GL_DRAW_INDIRECT_BUFFER);
 
 	ecs.register_system([&cam,&projection_matrix,&pvm_matrices,&pipe](ECSmanager& ecs_manager) 
