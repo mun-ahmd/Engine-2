@@ -224,11 +224,11 @@ int main()
 	auto meshes_2 = model2_.get_meshes();
 
 	auto meshes_mats = model_.get_meshes_materials();
-	for (int i = 0 ; i < meshes_mats.size(); ++i)
+	for (int i = 0; i < meshes_mats.size(); ++i)
 	{
 		meshes_mats[i].second->make_resident();
 		Position thisOnes(0);
-		thisOnes.pos.y = i * 5;
+		thisOnes.pos.z = i * 3;
 		auto for_static_meshes = ((Mesh3*)meshes_mats[i].first)->debug_get_arrays();
 		MeshStatic* new_mesh_test = new MeshStatic(for_static_meshes.first, for_static_meshes.second);
 		HigherGraphics::add_instance_of_mesh(new_mesh_test, thisOnes.pos);
@@ -261,8 +261,6 @@ int main()
 			pvm_matrices.modify(glm::value_ptr(view_matrix), sizeof(glm::mat4), sizeof(glm::mat4));
 			for (int i = 0; i < 1; ++i)
 			{
-				view_matrix = glm::translate(glm::mat4(1), positions[i].pos);
-				pvm_matrices.modify(glm::value_ptr(view_matrix), sizeof(glm::mat4), 2*sizeof(glm::mat4));
 				//pipe.set_texture_handle("albedo", mats[i]->get_handles()[0]);
 				HigherGraphics::get_static_meshes_holder().multi_draw();
 				//meshes[i]->draw();

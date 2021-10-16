@@ -5,21 +5,20 @@ static unsigned int placeholder_id_indices = std::numeric_limits<unsigned int>::
 
 
 
-std::pair<VertexArray, size_t> MultiStaticMesh::add_mesh(const void* vertices_data, size_t vertices_data_size, const void* indices_data, size_t indices_data_size, std::vector<VertexAttribData> attribs)
+std::pair<VertexArray, size_t> MultiStaticMesh::add_mesh(
+	const void* vertices_data, size_t vertices_data_size,
+	const void* indices_data,
+	size_t indices_data_size,
+	std::vector<VertexAttribData> attribs)
 {
-
-	unsigned char* final_vertices_data = new unsigned char[vertices_data_size + sizeof(unsigned int)];
-	memcpy(final_vertices_data,&num_meshes,sizeof(unsigned int));
-	memcpy(final_vertices_data+sizeof(unsigned int), vertices_data, vertices_data_size);
-
 	while (vertices_multi.allocate_next(placeholder_id_vertices, vertices_data, vertices_data_size ) == false)
 	{
+		//todo Hello thread safety :)
 		placeholder_id_vertices += 1;
 	}
-	delete[](final_vertices_data);
 	while (indices_multi.allocate_next(placeholder_id_indices, indices_data, indices_data_size) == false)
 	{
-		placeholder_id_indices += 1;
+		placeholder_id_indices += 1;	
 	}
 
 	size_t indices_offset = indices_multi.get_object_offset(placeholder_id_indices);
@@ -46,4 +45,3 @@ std::pair<VertexArray, size_t> MultiStaticMesh::add_mesh(const void* vertices_da
 
 	return std::pair(VAO, indices_offset);
 }
-

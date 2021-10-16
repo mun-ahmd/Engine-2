@@ -23,7 +23,7 @@ private:
 	{
 		if (std::filesystem::exists(asset_file))
 		{
-			asset.loadModel(asset_file.c_str(),false,false,false)
+			asset.loadModel(asset_file.c_str(), false, false, false);
 		}
 		else
 		{

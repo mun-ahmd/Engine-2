@@ -227,7 +227,7 @@ public:
 		indices_offsets.push_back(indices_multi.get_used_size());
 		for (size_t i = 0; i < indices_offsets.size() - 1; ++i)
 		{
-			unsigned int baseVertex = (verts_offsets[i] - 0*sizeof(unsigned int)) / per_vertex_size;
+			unsigned int baseVertex = (verts_offsets[i]) / per_vertex_size;
 
 			if ((indices_offsets[i + 1] - indices_offsets[i]) / indices_type_size > num_triangles_per_cluster * 3)
 			{
