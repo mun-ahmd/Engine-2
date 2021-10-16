@@ -70,17 +70,23 @@ public:
 		//	delete[] data_got;
 		//}
 	}
-	void destroy()
+	inline void destroy()
 	{
 		glDeleteBuffers(1, &id);
 	}
-	void modify(const void* data,size_t data_size,size_t offset)
+	inline void modify(const void* data,size_t data_size,size_t offset)
 	{
 		assert(data_size < max_size);
 		glBindBuffer(GL_ARRAY_BUFFER, id);
 		glBufferSubData(GL_ARRAY_BUFFER,offset,data_size,data);
 	}
-	void copy(size_t size_to_copy, size_t write_buff_offset, Buffer copy_buff, size_t copy_buff_offset)
+	inline void new_data(const void* data, size_t data_size, GLenum usage_type = GL_STATIC_DRAW)
+	{
+		assert(max_size == 0);
+		bind(GL_ARRAY_BUFFER);
+		glBufferData(GL_ARRAY_BUFFER, data_size, data, usage_type);
+	}
+	void copy(size_t size_to_copy, size_t write_buff_offset, const Buffer copy_buff, size_t copy_buff_offset)
 	{
 		assert(copy_buff.id != id);
 		glBindBuffer(GL_COPY_READ_BUFFER, copy_buff.id);
@@ -89,20 +95,20 @@ public:
 	}
 	void copy_self(size_t size_to_copy, size_t write_offset, size_t copy_offset)
 	{
+		//todo test
 		glBindBuffer(GL_ARRAY_BUFFER, id);
 		glCopyBufferSubData(GL_ARRAY_BUFFER, GL_ARRAY_BUFFER, copy_offset, write_offset, size_to_copy);
 	}
-	void access(void* data_ptr, size_t num_bytes_to_read, size_t offset)
+	inline void access(void* data_ptr, size_t num_bytes_to_read, size_t offset) const
 	{
-		//return a pointer with buffer data
 		glGetBufferSubData(GL_ARRAY_BUFFER, offset, num_bytes_to_read, data_ptr);
 	}
-	void bind(GLenum target)
+	inline void bind(GLenum target) const
 	{
 		glBindBuffer(target, id);
 	}
-	void bind_base(GLenum target, unsigned int binding_point);	//in source file
-	void bind_range(GLenum target, unsigned int binding_point, unsigned int offset, unsigned int size);
+	void bind_base(GLenum target, unsigned int binding_point) const;	//in source file
+	void bind_range(GLenum target, unsigned int binding_point, unsigned int offset, unsigned int size) const;
 };
 //even though I randomly bind to gl_array_buffer everywhere, this buffer object is to be used exclusively, so if everyone does it its not a problem
 
@@ -197,8 +203,8 @@ public:
 		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)indirect_buffer_offset, draw_count, stride);
 	}
 	void modify();
-	void access();
-	void bind()
+	void access() const;
+	void bind() const
 	{
 		glBindVertexArray(id);
 	}
@@ -317,11 +323,11 @@ public:
 	{
 		glDeleteTextures(1, &id);
 	}
-	inline void bind(GLenum target_)
+	inline void bind(GLenum target_) const
 	{
 		glBindTexture(target_, id);
 	}
-	inline unsigned int get_id() { return id; }
+	inline unsigned int get_id() const { return id; }
 	void downscale();
 	void upscale();
 };
@@ -381,8 +387,8 @@ public:
 		glMakeTextureHandleNonResidentARB(handle);
 		residency = false;
 	}
-	inline bool is_handle_resident() { return residency; }
-	inline uint64_t get_handle() { return handle; }
+	inline bool is_handle_resident() const { return residency; }
+	inline uint64_t get_handle() const { return handle; }
 
 };
 
@@ -769,13 +775,13 @@ public:
 		link_shader(compile_shader(GL_FRAGMENT_SHADER, read_shader_file(fragment_shader_loc)));
 	}
 
-	inline unsigned int get_program()
+	inline unsigned int get_program() const
 	{
 		return program;
 	}
 
 
-	inline void bind()
+	inline void bind() const
 	{
 		glUseProgram(program);
 	}

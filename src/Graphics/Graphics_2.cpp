@@ -118,7 +118,7 @@ static target_bindings_info targetBindingsInformation;
 #endif	//in debug config
 
 
-void Buffer::bind_base(GLenum target, unsigned int binding_point)
+void Buffer::bind_base(GLenum target, unsigned int binding_point) const
 {
 	glBindBufferBase(target, binding_point, this->id);
 
@@ -127,7 +127,7 @@ void Buffer::bind_base(GLenum target, unsigned int binding_point)
 #endif
 }
 
-void Buffer::bind_range(GLenum target, unsigned int binding_point, unsigned int offset, unsigned int size)
+void Buffer::bind_range(GLenum target, unsigned int binding_point, unsigned int offset, unsigned int size) const
 {
 	glBindBufferRange(target, binding_point, this->id, offset, size);
 
