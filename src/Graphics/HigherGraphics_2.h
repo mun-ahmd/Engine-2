@@ -143,9 +143,12 @@ private:
 	unsigned int num_meshes = 0;
 	VertexArray VAO;
 	Buffer indirect_draw_buffer;
+	BufferMulti mesh_information_buffer;
+	BufferMulti cluster_information_buffer;
+
 	Buffer transform_matrices_buffer;
 	Buffer material_ids_buffer;
-	Buffer mesh_instance_info_buffer;
+
 	unsigned int base_instance_vertex_attribute_index = 3;
 	unsigned int num_clusters = 0;
 
@@ -153,7 +156,7 @@ private:
 	const unsigned char indices_type_size = 4;
 	const unsigned short per_vertex_size = sizeof(float) * 8;
 
-	ComputeShader culling_compute = ComputeShader("CullClustersCompute.glsl");
+	ComputeShader culling_compute = ComputeShader("src\\Graphics\\CullClustersCompute.glsl");
 
 	std::vector<VertexAttribData> get_vertex_attribs()
 	{
@@ -192,7 +195,57 @@ private:
 		transform_matrices_buffer.modify(&zero_transform, sizeof(glm::mat4), index * sizeof(glm::mat4));
 	}
 
+
 public:
+	static const int MAX_NUM_MESHES = 1000;
+
+	void debug_output_indirect_draw(std::string filename)
+	{
+		std::ofstream file(filename);
+		if (!file.is_open())
+		{
+			std::cerr << "could not open file: " << filename;
+			exit(20);
+		}
+		unsigned int* buff_data = new unsigned int[num_clusters * 5];
+		indirect_draw_buffer.access(buff_data, num_clusters * 5 * sizeof(unsigned int), 0);
+		file << "count, instance_count, first_index, base_vertex, base_instance" << std::endl;
+		for (unsigned int i = 0; i < num_clusters*5; i += 5)
+		{
+			for (int x = 0; x < 5; ++x)
+			{
+				file << buff_data[i + x] << ',';
+			}
+			file << std::endl;
+		}
+
+		file << std::endl;
+
+		file << "num_instances, base_vertex" << std::endl;
+		mesh_information_buffer.get_buffer().access(buff_data, num_meshes * sizeof(unsigned int) * 2,0);
+		for (unsigned int i = 0; i < num_meshes*2;i += 2)
+		{
+			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
+		}
+
+		file << std::endl;
+
+		file << "mesh_id, num_triangles" << std::endl;
+
+		delete[] buff_data;
+		buff_data = new unsigned int[num_clusters*2];
+		cluster_information_buffer.get_buffer().access(buff_data, sizeof(unsigned int)*num_clusters * 2, 0);
+		for (unsigned int i = 0; i < num_clusters*2;i += 2)
+		{
+			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
+		}
+
+		delete[] buff_data;
+
+		file.close();
+
+	}
+
 	MultiStaticMesh(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size) :
 		num_triangles_per_cluster(num_triangles_per_cluster), indices_type_size(indices_type_size), per_vertex_size(per_vertex_size)
 	{}
@@ -202,9 +255,18 @@ public:
 		indices_multi = BufferMulti(max_size_index_buff);
 		VAO = VertexArray(vertices_multi.get_buffer(), indices_multi.get_buffer(), get_vertex_attribs());
 		//glVertexAttribDivisor(3, 1);
-		indirect_draw_buffer = Buffer(0, NULL, GL_ARRAY_BUFFER, true);
+		indirect_draw_buffer = Buffer(20* (max_size_index_buff / (3 * 128)) * 8, NULL);
+		mesh_information_buffer = BufferMulti(MAX_NUM_MESHES * 8);
+		cluster_information_buffer = BufferMulti((max_size_index_buff / (3 * 128)) * 8);
+
 		transform_matrices_buffer = Buffer(sizeof(glm::mat4) * 1000, NULL, GL_SHADER_STORAGE_BUFFER, 0, GL_STREAM_DRAW);
 		material_ids_buffer = Buffer(sizeof(unsigned int) * 1000, NULL, GL_SHADER_STORAGE_BUFFER, 0, GL_STREAM_DRAW);
+
+		culling_compute.add_ssbo_block("ClustersInfo");
+		culling_compute.add_ssbo_block("MeshInfo");
+		cluster_information_buffer.get_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 4);
+		mesh_information_buffer.get_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 5);
+		indirect_draw_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 3);
 	}
 	void multi_draw() const
 	{
@@ -217,7 +279,7 @@ public:
 
 	void compute_indirect_draw_buffer()
 	{
-
+		culling_compute.bind_dispatch(this->num_clusters, 1, 1);
 	}
 
 	void create_indirect_draw_buffer()
@@ -246,7 +308,7 @@ public:
 		{
 			unsigned int baseVertex = (verts_offsets[i]) / per_vertex_size;
 
-			if ((indices_offsets[i + 1] - indices_offsets[i]) / indices_type_size > num_triangles_per_cluster * 3)
+			if ((indices_offsets[i + 1] - indices_offsets[i]) / indices_type_size >= num_triangles_per_cluster * 3)
 			{
 				for (unsigned int x = 0; x < (indices_offsets[i + 1] - indices_offsets[i]) / indices_type_size; x += num_triangles_per_cluster * 3)
 				{
@@ -255,6 +317,7 @@ public:
 					curr.instanceCount = 1;
 					curr.baseVertex = baseVertex;
 					curr.firstIndex = indices_offsets[i] / indices_type_size + x;
+					std::cout << "\n" << curr.firstIndex << "\n";
 					curr.baseInstance = i;
 					buff_data.push_back(curr);
 				}
@@ -273,8 +336,13 @@ public:
 		
 		indirect_draw_buffer.new_data(buff_data.data(), buff_data.size() * sizeof(indirect_draw_struct));
 	}
-	std::pair<VertexArray, size_t> add_mesh(
-		const void* vertices_data, size_t vertices_data_size, const void* indices_data, size_t indices_data_size, std::vector<VertexAttribData> attribs
+	std::pair<VertexArray, long long> add_mesh(
+		const void* vertices_data,
+		size_t vertices_data_size,
+		const void* indices_data,
+		size_t indices_data_size,
+		unsigned int num_triangles_actual,
+		std::vector<VertexAttribData> attribs
 	);
 	void set_transform(unsigned int index, glm::mat4 transform)
 	{
@@ -294,6 +362,8 @@ public:
 	{
 		return transform_matrices_buffer;
 	}
+
+	inline unsigned int get_num_triangles_per_cluster() const { return num_triangles_per_cluster; }
 };
 
 class HigherGraphics

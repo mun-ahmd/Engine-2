@@ -104,8 +104,9 @@ public:
 class MeshStatic
 {
 private:
-	std::vector<Vertex3> vertices;
+	std::vector<Vertex3> vertices;	
 	std::vector<unsigned int> indices;
+	unsigned int num_triangles_actual;
 	VertexArray VAO;
 	size_t indices_offset;
 	void setup_mesh();
