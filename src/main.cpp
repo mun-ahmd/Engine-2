@@ -208,7 +208,7 @@ int main()
 	pipe.bind_pipeline_uniform_block("Matrices", 2);
 	pvm_matrices.bind_range(GL_UNIFORM_BUFFER, pipe.get_pipeline_uniform_block_binding("Matrices"), 0, sizeof(glm::mat4) * 3);
 
-	HigherGraphics::get_static_meshes_holder().get_transform_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 4);
+	HigherGraphics::get_static_meshes_holder().get_transform_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
 	
 
@@ -248,6 +248,7 @@ int main()
 	//glUniform1ui64ARB(glGetUniformLocation(pipe.get_program(), "albedo"), sapdpia.get_handle());
 
 	HigherGraphics::prepare_indirect_draw_buffer();
+	pipe.bind();
 	const Buffer& indirect_draw_buff = HigherGraphics::get_static_meshes_holder().get_indirect_draw_buffer();
 	indirect_draw_buff.bind(GL_DRAW_INDIRECT_BUFFER);
 
