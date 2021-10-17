@@ -1,7 +1,6 @@
 #include "Graphics_2.h"
 
 
-
 GLFWwindow* openWindow() //opens a window and returns it as an object using glfw
 {
 	if (!glfwInit())
@@ -43,19 +42,32 @@ MessageCallback(GLenum source,
 	const GLchar* message,
 	const void* userParam)
 {
-	fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+	fprintf(stderr, "\nGL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
 		(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
 		type, severity, message);
 }
 
+class InitializeAndOpenWindow
+{
+public:
+	GLFWwindow* window;
+	InitializeAndOpenWindow()
+	{
+		gladLoadGL();
+		glfwInit();
+		window = openWindow();
 
+#ifndef NDEBUG
+		glEnable(GL_DEBUG_OUTPUT);
+		glDebugMessageCallback(MessageCallback, 0);
+#endif
+	}
+};
+
+static InitializeAndOpenWindow opengl_and_window_initializer;
 
 
 GLFWwindow* Graphics::InitiateGraphicsLib(std::vector<std::string> required_extensions){
-gladLoadGL();
-glfwInit();
-GLFWwindow* window = openWindow();
-
 for (auto itr = required_extensions.begin(); itr < required_extensions.end(); ++itr)
 {
 	if (glfwExtensionSupported(itr->c_str()) == GLFW_FALSE)
@@ -69,13 +81,9 @@ for (auto itr = required_extensions.begin(); itr < required_extensions.end(); ++
 }
 std::cout << "ALL REQUESTED EXTENSIONS ARE SUPPORTED\n";
 
-#ifndef NDEBUG
-glEnable(GL_DEBUG_OUTPUT);
-glDebugMessageCallback(MessageCallback, 0);
-#endif
-
-return window;
+return opengl_and_window_initializer.window;
 }
+
 
 void DrawCall()
 {}

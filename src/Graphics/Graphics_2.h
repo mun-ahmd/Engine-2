@@ -101,6 +101,7 @@ public:
 	}
 	inline void access(void* data_ptr, size_t num_bytes_to_read, size_t offset) const
 	{
+		glBindBuffer(GL_ARRAY_BUFFER,id);
 		glGetBufferSubData(GL_ARRAY_BUFFER, offset, num_bytes_to_read, data_ptr);
 	}
 	inline void bind(GLenum target) const
@@ -819,24 +820,14 @@ public:
 		return uniform_block_index_to_binding[block_index];
 	}
 
-	inline void add_pipeline_ssbo_block(unsigned int block_index, std::string block_name = "")
+	void add_pipeline_ssbo_block(std::string block_name)
 	{
-		if (block_name == "")
-		{
-			block_name = char(block_index);	//same block_index only refers to same buffer
-		}
-		pipeline_ssbo_blocks[block_name] = block_index;	//block index is layout qualifier given in shader
+		pipeline_ssbo_blocks[block_name] = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, block_name.c_str());
 	}
 
 	inline void bind_pipeline_ssbo_block(std::string block_name, unsigned int binding_point)
 	{
 		unsigned int block_index = pipeline_ssbo_blocks[block_name];
-		glShaderStorageBlockBinding(program, block_index, binding_point);
-		ssbo_block_index_to_binding[block_index] = binding_point;
-	}
-
-	inline void bind_pipeline_ssbo_block(unsigned int block_index, unsigned int binding_point)
-	{
 		glShaderStorageBlockBinding(program, block_index, binding_point);
 		ssbo_block_index_to_binding[block_index] = binding_point;
 	}
@@ -882,13 +873,9 @@ public:
 		unsigned int shader = Pipeline::compile_shader(GL_COMPUTE_SHADER, shader_source);
 		Pipeline::link_shader_to_program_and_delete_shader(shader, program);
 	}
-	void add_ssbo_block(unsigned int block_index, std::string block_name = "")
+	void add_ssbo_block(std::string block_name)
 	{
-		if (block_name == "")
-		{
-			block_name = char(block_index);	//same block_index only refers to same buffer
-		}
-		ssbo_location[block_name] = block_index;
+		ssbo_location[block_name] = glGetProgramResourceIndex(program,GL_SHADER_STORAGE_BLOCK,block_name.c_str());
 	}
 
 	void bind_ssbo_block(std::string block_name, unsigned int binding_point)
@@ -896,9 +883,9 @@ public:
 		glShaderStorageBlockBinding(program, ssbo_location[block_name], binding_point);
 	}
 
-	void bind_ssbo_block(unsigned int block_index, unsigned int binding_point)
+	inline void bind()
 	{
-		glShaderStorageBlockBinding(program, block_index, binding_point);
+		glUseProgram(program);
 	}
 
 	inline void dispatch(uint32_t num_groups_x, uint32_t num_groups_y, uint32_t num_groups_z)
