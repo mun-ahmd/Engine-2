@@ -151,7 +151,6 @@ int main()
 	};
 
 	GLFWwindow* window = Graphics::InitiateGraphicsLib({"GL_ARB_bindless_texture"});
-	MeshStatic::initialize();
 	
 	int window_height, window_width;
 	glfwGetWindowSize(window, &window_width, &window_height);

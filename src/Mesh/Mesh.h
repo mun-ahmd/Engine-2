@@ -132,7 +132,6 @@ private:
 		return attribs;
 	}
 public:
-	static void initialize();
 	static void prepare_indirect_draw_buffer();	
 	static const MultiStaticMesh& get_static_meshes_holder();
 

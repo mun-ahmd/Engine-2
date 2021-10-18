@@ -199,16 +199,14 @@ private:
 public:
 	static const int MAX_NUM_MESHES = 1000;
 
-	MultiStaticMesh(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size) :
+	MultiStaticMesh(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size, size_t max_size_vertex_buff, size_t max_size_index_buff) :
 		num_triangles_per_cluster(num_triangles_per_cluster), indices_type_size(indices_type_size), per_vertex_size(per_vertex_size)
-	{}
-	void initialize(size_t max_size_vertex_buff, size_t max_size_index_buff)
 	{
 		vertices_multi = BufferMulti(max_size_vertex_buff);
 		indices_multi = BufferMulti(max_size_index_buff);
 		VAO = VertexArray(vertices_multi.get_buffer(), indices_multi.get_buffer(), get_vertex_attribs());
 		//glVertexAttribDivisor(3, 1);
-		indirect_draw_buffer = Buffer(20* (max_size_index_buff / (3 * 128)) * 8, NULL);
+		indirect_draw_buffer = Buffer(20 * (max_size_index_buff / (3 * 128)) * 8, NULL);
 		mesh_information_buffer = BufferMulti(MAX_NUM_MESHES * 8);
 		cluster_information_buffer = BufferMulti((max_size_index_buff / (3 * 128)) * 8);
 

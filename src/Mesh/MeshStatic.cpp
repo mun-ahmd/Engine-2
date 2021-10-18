@@ -3,12 +3,9 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 constexpr unsigned short static_meshes_buffer_size_in_megabytes = 200;
-static MultiStaticMesh static_meshes_container(128, sizeof(unsigned int), sizeof(Vertex3));
+static MultiStaticMesh static_meshes_container(128, sizeof(unsigned int), sizeof(Vertex3) , static_meshes_buffer_size_in_megabytes * 1000000, static_meshes_buffer_size_in_megabytes * 1000000);
 
-void MeshStatic::initialize()
-{
-	static_meshes_container.initialize(static_meshes_buffer_size_in_megabytes * 1000000, static_meshes_buffer_size_in_megabytes * 1000000);
-}
+
 const MultiStaticMesh& MeshStatic::get_static_meshes_holder()
 {
 	return static_meshes_container;
