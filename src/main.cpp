@@ -151,7 +151,7 @@ int main()
 	};
 
 	GLFWwindow* window = Graphics::InitiateGraphicsLib({"GL_ARB_bindless_texture"});
-	HigherGraphics::initialize();
+	MeshStatic::initialize();
 	
 	int window_height, window_width;
 	glfwGetWindowSize(window, &window_width, &window_height);
@@ -208,7 +208,7 @@ int main()
 	pipe.bind_pipeline_uniform_block("Matrices", 2);
 	pvm_matrices.bind_range(GL_UNIFORM_BUFFER, pipe.get_pipeline_uniform_block_binding("Matrices"), 0, sizeof(glm::mat4) * 3);
 
-	HigherGraphics::get_static_meshes_holder().get_transform_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
+	MeshStatic::get_static_meshes_holder().get_transform_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 0);
 
 	
 
@@ -231,7 +231,7 @@ int main()
 		thisOnes.pos.z = i * 3;
 		auto for_static_meshes = ((Mesh3*)meshes_mats[i].first)->debug_get_arrays();
 		MeshStatic* new_mesh_test = new MeshStatic(for_static_meshes.first, for_static_meshes.second);
-		HigherGraphics::add_instance_of_mesh(new_mesh_test, thisOnes.pos);
+		new_mesh_test->add_instance(thisOnes.pos);
 		ecs.new_entity(thisOnes, new_mesh_test, meshes_mats[i].second);
 	}
 
@@ -247,9 +247,9 @@ int main()
 	//pipe.set_texture_handle("albedo", sapdpia);
 	//glUniform1ui64ARB(glGetUniformLocation(pipe.get_program(), "albedo"), sapdpia.get_handle());
 
-	HigherGraphics::prepare_indirect_draw_buffer();
+	MeshStatic::prepare_indirect_draw_buffer();
 	pipe.bind();
-	const Buffer& indirect_draw_buff = HigherGraphics::get_static_meshes_holder().get_indirect_draw_buffer();
+	const Buffer& indirect_draw_buff = MeshStatic::get_static_meshes_holder().get_indirect_draw_buffer();
 	indirect_draw_buff.bind(GL_DRAW_INDIRECT_BUFFER);
 
 	ecs.register_system([&cam,&projection_matrix,&pvm_matrices,&pipe](ECSmanager& ecs_manager) 
@@ -263,7 +263,7 @@ int main()
 			for (int i = 0; i < 1; ++i)
 			{
 				//pipe.set_texture_handle("albedo", mats[i]->get_handles()[0]);
-				HigherGraphics::get_static_meshes_holder().multi_draw();
+				MeshStatic::get_static_meshes_holder().multi_draw();
 				//meshes[i]->draw();
 			}
 		});

@@ -5,24 +5,25 @@
 constexpr unsigned short static_meshes_buffer_size_in_megabytes = 200;
 static MultiStaticMesh static_meshes_container(128, sizeof(unsigned int), sizeof(Vertex3));
 
-void HigherGraphics::initialize()
+void MeshStatic::initialize()
 {
 	static_meshes_container.initialize(static_meshes_buffer_size_in_megabytes * 1000000, static_meshes_buffer_size_in_megabytes * 1000000);
 }
-const MultiStaticMesh& HigherGraphics::get_static_meshes_holder()
+const MultiStaticMesh& MeshStatic::get_static_meshes_holder()
 {
 	return static_meshes_container;
 }
-void HigherGraphics::prepare_indirect_draw_buffer()
+void MeshStatic::prepare_indirect_draw_buffer()
 {
 	static_meshes_container.compute_indirect_draw_buffer();
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	//static_meshes_container.debug_output_indirect_draw("compute_debug.csv");
 }
 
-void HigherGraphics::add_instance_of_mesh(MeshStatic* mesh, glm::vec3 position)
+void MeshStatic::add_instance(glm::vec3 position)
 {
-	static_meshes_container.set_transform(mesh, glm::translate(glm::mat4(1), position));
+	//todo change this from set transform to add instance
+	static_meshes_container.set_transform(this, glm::translate(glm::mat4(1), position));
 }
 
 void MeshStatic::setup_mesh()

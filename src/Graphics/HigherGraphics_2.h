@@ -199,53 +199,6 @@ private:
 public:
 	static const int MAX_NUM_MESHES = 1000;
 
-	void debug_output_indirect_draw(std::string filename)
-	{
-		std::ofstream file(filename);
-		if (!file.is_open())
-		{
-			std::cerr << "could not open file: " << filename;
-			exit(20);
-		}
-		unsigned int* buff_data = new unsigned int[num_clusters * 5];
-		indirect_draw_buffer.access(buff_data, num_clusters * 5 * sizeof(unsigned int), 0);
-		file << "count, instance_count, first_index, base_vertex, base_instance" << std::endl;
-		for (unsigned int i = 0; i < num_clusters*5; i += 5)
-		{
-			for (int x = 0; x < 5; ++x)
-			{
-				file << buff_data[i + x] << ',';
-			}
-			file << std::endl;
-		}
-
-		file << std::endl;
-
-		file << "num_instances, base_vertex" << std::endl;
-		mesh_information_buffer.get_buffer().access(buff_data, num_meshes * sizeof(unsigned int) * 2,0);
-		for (unsigned int i = 0; i < num_meshes*2;i += 2)
-		{
-			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
-		}
-
-		file << std::endl;
-
-		file << "mesh_id, num_triangles" << std::endl;
-
-		delete[] buff_data;
-		buff_data = new unsigned int[num_clusters*2];
-		cluster_information_buffer.get_buffer().access(buff_data, sizeof(unsigned int)*num_clusters * 2, 0);
-		for (unsigned int i = 0; i < num_clusters*2;i += 2)
-		{
-			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
-		}
-
-		delete[] buff_data;
-
-		file.close();
-
-	}
-
 	MultiStaticMesh(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size) :
 		num_triangles_per_cluster(num_triangles_per_cluster), indices_type_size(indices_type_size), per_vertex_size(per_vertex_size)
 	{}
@@ -344,6 +297,54 @@ public:
 		unsigned int num_triangles_actual,
 		std::vector<VertexAttribData> attribs
 	);
+	
+	void debug_output_indirect_draw(std::string filename)
+	{
+		std::ofstream file(filename);
+		if (!file.is_open())
+		{
+			std::cerr << "could not open file: " << filename;
+			exit(20);
+		}
+		unsigned int* buff_data = new unsigned int[num_clusters * 5];
+		indirect_draw_buffer.access(buff_data, num_clusters * 5 * sizeof(unsigned int), 0);
+		file << "count, instance_count, first_index, base_vertex, base_instance" << std::endl;
+		for (unsigned int i = 0; i < num_clusters * 5; i += 5)
+		{
+			for (int x = 0; x < 5; ++x)
+			{
+				file << buff_data[i + x] << ',';
+			}
+			file << std::endl;
+		}
+
+		file << std::endl;
+
+		file << "num_instances, base_vertex" << std::endl;
+		mesh_information_buffer.get_buffer().access(buff_data, num_meshes * sizeof(unsigned int) * 2, 0);
+		for (unsigned int i = 0; i < num_meshes * 2;i += 2)
+		{
+			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
+		}
+
+		file << std::endl;
+
+		file << "mesh_id, num_triangles" << std::endl;
+
+		delete[] buff_data;
+		buff_data = new unsigned int[num_clusters * 2];
+		cluster_information_buffer.get_buffer().access(buff_data, sizeof(unsigned int) * num_clusters * 2, 0);
+		for (unsigned int i = 0; i < num_clusters * 2;i += 2)
+		{
+			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
+		}
+
+		delete[] buff_data;
+
+		file.close();
+
+	}
+
 	void set_transform(unsigned int index, glm::mat4 transform)
 	{
 		transform_matrices_buffer.modify(&transform, sizeof(glm::mat4), index * sizeof(glm::mat4));
@@ -369,8 +370,4 @@ public:
 class HigherGraphics
 {
 public:
-	static void initialize();
-	static void prepare_indirect_draw_buffer();
-	static const MultiStaticMesh& get_static_meshes_holder();
-	static void add_instance_of_mesh(MeshStatic* mesh, glm::vec3 position);
 };

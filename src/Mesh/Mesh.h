@@ -100,6 +100,8 @@ public:
 };
 
 
+//forward declaration
+class MultiStaticMesh;
 
 class MeshStatic
 {
@@ -130,11 +132,16 @@ private:
 		return attribs;
 	}
 public:
+	static void initialize();
+	static void prepare_indirect_draw_buffer();	
+	static const MultiStaticMesh& get_static_meshes_holder();
+
+	void add_instance(glm::vec3 position);
+
 	MeshStatic(std::vector<Vertex3> vertices, std::vector<unsigned int> indices) : vertices(vertices), indices(indices) 
 	{
 		setup_mesh();
 	}
-	static void initialize();
 	static Buffer debug_get_multi_draw_buff();
 	static void multi_draw_static_meshes(Buffer indirect_buffer, unsigned int indirect_buffer_offset = 0);
 	VertexArray get_vao()
