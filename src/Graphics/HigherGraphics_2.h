@@ -219,8 +219,9 @@ public:
 		mesh_information_buffer.get_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 5);
 		indirect_draw_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 3);
 	}
-	void multi_draw() const
+	void multi_draw(const Buffer& views_buff) const
 	{
+		//views_buff.bind_base(GL_SHADER_STORAGE_BUFFER, 6);	//avoid putting this here
 		VAO.multi_draw_indirect(num_clusters, 0, 0);
 	}
 	const Buffer& get_indirect_draw_buffer() const
@@ -355,7 +356,6 @@ public:
 	{
 		material_ids_buffer.modify(&mat_id, sizeof(unsigned int), vertices_multi.get_object_index(mesh->get_vao()) * sizeof(unsigned int));
 	}
-
 
 	Buffer get_transform_buffer() const
 	{

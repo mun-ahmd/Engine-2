@@ -13,7 +13,7 @@ const MultiStaticMesh& MeshStatic::get_static_meshes_holder()
 void MeshStatic::prepare_indirect_draw_buffer()
 {
 	static_meshes_container.compute_indirect_draw_buffer();
-	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	//static_meshes_container.debug_output_indirect_draw("compute_debug.csv");
 }
 
