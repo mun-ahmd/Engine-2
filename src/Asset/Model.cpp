@@ -1,3 +1,6 @@
+//deprecated
+/*
+
 #include "Model.h"
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
@@ -10,6 +13,10 @@
 
 #define AI_CONFIG_PP_RVC_FLAGS aiComponent_COLORS
 #define AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE 80
+
+std::vector<MeshDataAny> load_meshes() {
+    
+}
 
 void Model::processNode(void* nodeIN, const void* sceneIN, bool hastangents)
 {
@@ -351,3 +358,5 @@ void Model::loadModel_ext_format(const char* filedirIN,bool loadTangents, bool o
     processScene(og_file_dir.remove_filename().string(),scene, loadTangents);
 
 }
+
+*/

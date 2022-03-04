@@ -13,6 +13,9 @@
 #include "System/System.h"
 #include "Utils/CompileTimeTypeHash.h"
 
+#include "BaseComponents.h"
+
+
 template <class... args>
 using tuple_BH = boost::hana::tuple<args...>;
 

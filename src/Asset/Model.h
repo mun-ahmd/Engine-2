@@ -1,5 +1,7 @@
 #pragma once
 
+//Deprecated
+/*
 #include "Mesh/Mesh.h"
 #include "Material/Material.h"
 
@@ -9,31 +11,47 @@
 #include <vector>
 #include <fstream>
 #include <string>
+
+struct MeshDataAny {
+	VertexDataAny vertices;
+	std::vector<unsigned int> indices;
+};
+
+struct Loaded3DSceneData {
+	std::vector<MeshDataAny> meshes;
+	std::vector<unsigned short> mesh_mat_id;
+
+	std::vector<PBR_Material> materials;
+	std::vector<Texture_2D> textures;
+};
+std::vector<MeshDataAny> load_meshes();
+
+
 //model is intended to be an imported asset, from model you can choose meshes as mesh components and materials for the renderer
 class Model
 {
 public:
-	static bool are_same_verts(Model& a, Model& b)
-	{
-		if (a.meshes.size() != b.meshes.size())
-			return false;
-		for (size_t i = 0; i < a.meshes.size(); ++i)
-		{
-			VertexData ad = a.meshes[i]->getMeshData();
-			VertexData bd = b.meshes[i]->getMeshData();
-			if (ad.verts_data_size != bd.verts_data_size)
-				return false;
-			for (size_t i = 0; i < ad.verts_data_size; i++)
-			{
-				if (ad.verts_data[i] != bd.verts_data[i])
-				{
-					std::cout << ad.verts_data[i] << "   " << bd.verts_data[i] << '\n';
-					//return false;
-				}
-			}
-		}
-		return true;
-	}
+	//static bool are_same_verts(Model& a, Model& b)
+	//{
+	//	if (a.meshes.size() != b.meshes.size())
+	//		return false;
+	//	for (size_t i = 0; i < a.meshes.size(); ++i)
+	//	{
+	//		VertexData ad = a.meshes[i]->getMeshData();
+	//		VertexData bd = b.meshes[i]->getMeshData();
+	//		if (ad.verts_data_size != bd.verts_data_size)
+	//			return false;
+	//		for (size_t i = 0; i < ad.verts_data_size; i++)
+	//		{
+	//			if (ad.verts_data[i] != bd.verts_data[i])
+	//			{
+	//				std::cout << ad.verts_data[i] << "   " << bd.verts_data[i] << '\n';
+	//				//return false;
+	//			}
+	//		}
+	//	}
+	//	return true;
+	//}
 		
 	void loadModel(const char* filedirIN,bool loadTangents, bool optimizeMesh,bool smoothNormals = false);
 
@@ -89,3 +107,5 @@ private:
 	std::unordered_map<unsigned int, unsigned int> mesh_index_material_index;
 	//todo complete implementation after material is implemented
 };
+
+*/
