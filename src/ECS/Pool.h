@@ -16,7 +16,7 @@ private:
 	//todo test
 	SparseArray<uint32_t> _indices;
 	std::vector<Entity> _entities;
-	ByteBuffer _components;	//todo you might wanna replace vector of vectors with vector of a struct whose size cannot be changed after initialization
+	ByteBuffer _components = ByteBuffer(0);	//todo you might wanna replace vector of vectors with vector of a struct whose size cannot be changed after initialization
 
 	bool entity_in_pool(Entity entity)
 	{
@@ -77,6 +77,13 @@ public:
 	template <class ComponentType>
 	View<ComponentType> get_components()
 	{
+		return View<ComponentType>((ComponentType*)_components[0], _components.size());
+	}
+
+	template <class ComponentType>
+	View<ComponentType> get_components() const
+	{
+		static_assert(std::is_const<ComponentType>::value == true);
 		return View<ComponentType>((ComponentType*)_components[0], _components.size());
 	}
 

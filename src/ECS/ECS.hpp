@@ -33,7 +33,7 @@ private:
 	std::vector<std::function<void(ECSmanager&)>> systems;
 
 	template<class T>
-	inline size_t get_type_id()
+	inline size_t get_type_id() const
 	{
 		return typeid(T).hash_code();
 	}
@@ -41,6 +41,13 @@ private:
 	template<class ComponentType>
 	inline Pool& get_pool()
 	{
+		return component_data_map.at(get_type_id<ComponentType>());
+	}
+
+	template<class ComponentType>
+	inline const Pool& get_pool() const
+	{
+		static_assert(std::is_const<ComponentType>::value == true);
 		return component_data_map.at(get_type_id<ComponentType>());
 	}
 
@@ -199,6 +206,13 @@ public:
 	template<class ComponentType>
 	View<ComponentType> get_components_of_type()
 	{
+		return get_pool<ComponentType>().get_components<ComponentType>();
+	}
+
+	template<class ComponentType>
+	View<ComponentType> get_components_of_type() const
+	{
+		static_assert(std::is_const<ComponentType>::value == true);
 		return get_pool<ComponentType>().get_components<ComponentType>();
 	}
 
