@@ -1,9 +1,35 @@
 #pragma once
 #include "Graphics_2.h"
 #include <vector>
-
+#include <list>
+#include "glm/gtc/type_ptr.hpp"
 #include "Mesh/Mesh.h"
+#include <limits>
 
+namespace ComputeShaderDataStructures
+{
+	struct ClusterInfo
+	{
+		unsigned int mesh_id;
+		unsigned int num_triangles;
+	};
+
+	struct MeshInformation
+	{
+		unsigned int num_instances;
+		unsigned int base_vertex;
+	};
+
+	struct IndirectDrawInfo {
+		unsigned int  count;
+		unsigned int  instanceCount;
+		unsigned int  firstIndex;
+		unsigned int  baseVertex;
+		unsigned int  baseInstance;
+	};
+}
+
+constexpr Vertex3 NaN_Vertex = { glm::vec3(std::numeric_limits<float>::quiet_NaN()), glm::vec3(std::numeric_limits<float>::quiet_NaN()), glm::vec2(std::numeric_limits<float>::quiet_NaN()) };
 
 class BufferMulti
 {
@@ -134,8 +160,269 @@ public:
 
 };
 
+class VertexArrayHasherClass {
+	size_t operator()(const VertexArray& vao) {
+		return std::hash<unsigned int>()(vao.get_id());
+	}
+};
+class MultiStaticMesh {
+private:
+	Buffer indices;
+	Buffer vertices;
+	Buffer cluster_information;
+	Buffer mesh_information;
+	Buffer transformations;
+	Buffer material_ids;
 
-class MultiStaticMesh
+	VertexArray VAO;
+
+	Buffer indirect_draw_info;
+
+	struct MeshStoreOffsetInfo {
+		size_t indices_offset;
+		size_t vertices_offset;
+		size_t clusters_offset;
+		
+		size_t indices_size;
+		size_t vertices_size;
+
+		int mesh_index;	//-1 can be invalid mesh_index aka deleted mesh
+	};
+	std::vector<MeshStoreOffsetInfo> mesh_buffers_info;
+	//mesh_index is the same as static mesh id, because it is assured that it is unique despite deletion of meshes
+	std::unordered_map <uint32_t, unsigned int> id_to_buffer_info;
+	std::vector<unsigned int> deleted_meshes_buffer_info;
+
+	unsigned int num_meshes = 0;
+	unsigned int num_clusters = 0;
+
+	ComputeShader culling_compute = ComputeShader("src\\Graphics\\CullClustersCompute.glsl");
+
+	inline size_t add_mesh_store_info(size_t vertices_data_size, size_t indices_data_size) {
+		MeshStoreOffsetInfo info;
+		if (mesh_buffers_info.empty()) {
+			info.indices_offset = 0;
+			info.vertices_offset = 0;
+			info.clusters_offset = 0;
+		}
+		else {
+			info.indices_offset = mesh_buffers_info.back().indices_offset + mesh_buffers_info.back().indices_size;
+			info.vertices_offset = mesh_buffers_info.back().vertices_offset + mesh_buffers_info.back().vertices_size;
+			size_t num_clusters_prev = mesh_buffers_info.back().indices_size / (3 * num_triangles_per_cluster);
+			info.clusters_offset = mesh_buffers_info.back().clusters_offset + num_clusters_prev * sizeof(ComputeShaderDataStructures::ClusterInfo);
+		}
+		info.indices_size = indices_data_size;
+		info.vertices_size = vertices_data_size;
+		info.mesh_index = this->mesh_buffers_info.size();
+
+		this->mesh_buffers_info.push_back(info);
+
+		ComputeShaderDataStructures::MeshInformation mesh_inf;
+		mesh_inf.num_instances = 0;
+		mesh_inf.base_vertex = info.vertices_offset / sizeof(Vertex3);
+		this->mesh_information.modify(
+			&mesh_inf,
+			sizeof(ComputeShaderDataStructures::MeshInformation),
+			info.mesh_index * sizeof(ComputeShaderDataStructures::MeshInformation));
+
+		// return the index to the information in the mesh buffers info array
+		return mesh_buffers_info.size() - 1;
+	}
+
+	std::vector<VertexAttribData> get_vertex_attribs() const
+	{
+		std::vector<VertexAttribData> attribs(3);
+		attribs[0].type = GL_FLOAT;
+		attribs[0].normalized = false;
+		attribs[0].attrib_size = 3;
+		attribs[0].offset = sizeof(unsigned int) * 0;
+		attribs[0].stride = 8 * sizeof(float);
+
+		attribs[1] = attribs[0];
+		attribs[1].normalized = true;
+		attribs[1].offset += 3 * sizeof(float);
+
+		attribs[2] = attribs[0];
+		attribs[2].attrib_size = 2;
+		attribs[2].offset += 6 * sizeof(float);
+
+		return attribs;
+	}
+
+	
+	
+public:
+	struct MeshDrawInfo {
+		VertexArray vao;
+		size_t first_index;
+		size_t num_indices;
+	};
+	static constexpr unsigned int num_triangles_per_cluster = 128;
+	static constexpr unsigned int max_num_meshes = 100;
+	MultiStaticMesh(const size_t max_index_buff_size, const size_t max_vertex_buff_size) {
+
+		this->indices = Buffer(max_index_buff_size, NULL);
+		this->vertices = Buffer(max_vertex_buff_size, NULL);
+
+		this->VAO = VertexArray(
+			this->vertices,
+			this->indices,
+			this->get_vertex_attribs());
+
+		size_t max_num_triangles = max_index_buff_size / (sizeof(unsigned int) * 3);
+		size_t max_num_clusters = max_num_triangles / num_triangles_per_cluster;
+		
+		this->mesh_information = Buffer(sizeof(ComputeShaderDataStructures::MeshInformation) * max_num_meshes, NULL);
+		this->cluster_information = Buffer(sizeof(ComputeShaderDataStructures::ClusterInfo) * max_num_clusters, NULL);
+		this->transformations = Buffer(sizeof(glm::mat4) * max_num_meshes, NULL);
+		this->material_ids = Buffer(sizeof(uint32_t) * max_num_meshes, NULL);
+		
+		this->indirect_draw_info = Buffer(sizeof(ComputeShaderDataStructures::IndirectDrawInfo) * max_num_clusters, NULL);
+
+		this->mesh_buffers_info.reserve(max_num_meshes);
+		this->id_to_buffer_info.reserve(max_num_meshes);
+	}
+
+	std::optional<uint32_t> add_mesh(const Vertex3* vertex_data, size_t num_vertices, const unsigned int* indices_data, size_t num_indices) {
+		size_t num_triangles_in_mesh = num_indices / 3;
+		unsigned int num_add_indices = (num_triangles_per_cluster - (num_triangles_in_mesh % num_triangles_per_cluster)) * 3;
+		
+		size_t final_num_indices = num_indices + num_add_indices;
+		size_t final_num_vertices = num_vertices + (num_add_indices != 0);
+
+		size_t mesh_buffer_info_index = add_mesh_store_info(final_num_vertices * sizeof(Vertex3), final_num_indices * sizeof(unsigned int));
+		auto mesh_store_info = mesh_buffers_info[mesh_buffer_info_index];
+
+		this->vertices.modify(vertex_data, num_vertices * sizeof(Vertex3), mesh_store_info.vertices_offset);
+		this->indices.modify(indices_data, num_indices * sizeof(unsigned int), mesh_store_info.indices_offset);
+
+		if (num_add_indices != 0) {
+			this->vertices.modify(&NaN_Vertex, sizeof(Vertex3), mesh_store_info.vertices_offset + num_vertices * sizeof(Vertex3));
+
+			std::vector<unsigned int> extra_indices(num_add_indices, num_vertices);
+			this->indices.modify(
+				extra_indices.data(),
+				num_add_indices * sizeof(unsigned int),
+				mesh_store_info.indices_offset + num_indices * sizeof(unsigned int));
+		}
+
+		ComputeShaderDataStructures::ClusterInfo same_inf_each_cluster;
+		same_inf_each_cluster.mesh_id = mesh_store_info.mesh_index;
+		same_inf_each_cluster.num_triangles = num_triangles_per_cluster;
+		std::vector<ComputeShaderDataStructures::ClusterInfo> cluster_inf(final_num_indices / (3 * num_triangles_per_cluster), same_inf_each_cluster);
+		
+		this->cluster_information.modify(cluster_inf.data(), cluster_inf.size() * sizeof(ComputeShaderDataStructures::ClusterInfo), mesh_store_info.clusters_offset);
+		
+		this->num_clusters += cluster_inf.size();
+		this->num_meshes += 1;
+
+		//mesh_index is the mesh id
+		this->id_to_buffer_info[mesh_store_info.mesh_index] = mesh_buffer_info_index;
+
+
+		////todo REMOVE when done testing
+		//glm::mat4 wowtransform = glm::translate(glm::mat4(1), glm::vec3(0.));
+		//
+		//this->transformations.modify()
+
+		return mesh_store_info.mesh_index;
+	}
+
+	const Buffer& get_indirect_draw_buffer()
+	{
+		this->create_indirect_draw_buffer();
+		return this->indirect_draw_info;
+	}
+
+	void compute_indirect_draw_buffer()
+	{
+		culling_compute.bind_dispatch(this->num_clusters, 1, 1);
+	}
+
+	void create_indirect_draw_buffer()
+	{
+		//this is just a function created for testing.
+		struct indirect_draw_struct
+		{
+			unsigned int  count;			// would equal number of triangles per cluster * 3
+			unsigned int  instanceCount;	// setting it to 1 for now..
+			unsigned int  firstIndex;		// number of indices before the first one of this cluster regardless of which mesh it belongs to
+			unsigned int  baseVertex;		// number of vertices before the first one of cluster's mesh
+			unsigned int  baseInstance;		// set it to cluster index for now..
+		};
+
+		std::vector<indirect_draw_struct> buff_data;
+		buff_data.reserve(this->num_clusters);
+
+		size_t cluster_counter = 0;
+
+		for (const auto& mesh_buf_info : this->mesh_buffers_info) {
+			unsigned int num_clusters_in_curr = mesh_buf_info.indices_size/ (sizeof(unsigned int) * 3 * num_triangles_per_cluster);
+			for (unsigned int i = 0; i < num_clusters_in_curr; ++i) {
+				indirect_draw_struct curr_inf;
+				curr_inf.count = num_triangles_per_cluster * 3;
+				curr_inf.instanceCount = 1;
+				curr_inf.firstIndex = cluster_counter * num_triangles_per_cluster * 3;
+				curr_inf.baseVertex = mesh_buf_info.vertices_offset / sizeof(Vertex3);
+				curr_inf.baseInstance = mesh_buf_info.mesh_index;
+				
+				buff_data.push_back(curr_inf);
+				cluster_counter += 1;
+			}
+		}
+
+		this->indirect_draw_info.modify(buff_data.data(), buff_data.size() * sizeof(indirect_draw_struct), 0);
+	}
+
+	void set_instance(uint32_t static_mesh_id, glm::mat4 transform, uint32_t material_id) {
+		//todo
+		auto req_mesh_index = this->mesh_buffers_info[this->id_to_buffer_info[static_mesh_id]].mesh_index;
+		this->transformations.modify(
+			glm::value_ptr(transform),
+			sizeof(glm::mat4),
+			sizeof(glm::mat4) * req_mesh_index
+		);
+		this->material_ids.modify(
+			&material_id,
+			sizeof(uint32_t),
+			sizeof(uint32_t) * req_mesh_index
+		);
+	}
+
+	void draw_alone(uint32_t static_mesh_id) const {
+		//this is only supposed to handle the draw call nothing else including transformation
+		const auto& mesh_buff_info = this->mesh_buffers_info[static_mesh_id];
+		VAO.draw(mesh_buff_info.indices_size / sizeof(unsigned int), mesh_buff_info.indices_offset / sizeof(unsigned int));
+	}
+
+	void bind_vao() const {
+		VAO.bind();
+	}
+
+	void multi_draw() const {
+		this->VAO.multi_draw_indirect(this->num_clusters, 0, 0);
+	}
+
+	void remove_mesh(unsigned int static_mesh_id) {
+		//todo do this
+	}
+
+	const Buffer& get_transformation_buff() const {
+		return this->transformations;
+	}
+
+	const Buffer& get_material_ids_buff() const {
+		return this->material_ids;
+	}
+
+	const Buffer& get_indirect_draw_buff() const {
+		return this->indirect_draw_info;
+	}
+
+};
+
+/*
+class MultiStaticMesh_OLD
 {
 private:
 	BufferMulti indices_multi;
@@ -143,7 +430,7 @@ private:
 	unsigned int num_meshes = 0;
 	VertexArray VAO;
 	Buffer indirect_draw_buffer;
-	BufferMulti mesh_information_buffer;
+	Buffer mesh_information_buffer;
 	BufferMulti cluster_information_buffer;
 
 	Buffer transform_matrices_buffer;
@@ -199,7 +486,7 @@ private:
 public:
 	static const int MAX_NUM_MESHES = 1000;
 
-	MultiStaticMesh(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size, size_t max_size_vertex_buff, size_t max_size_index_buff) :
+	MultiStaticMesh_OLD(unsigned int num_triangles_per_cluster, unsigned char indices_type_size, unsigned short per_vertex_size, size_t max_size_vertex_buff, size_t max_size_index_buff) :
 		num_triangles_per_cluster(num_triangles_per_cluster), indices_type_size(indices_type_size), per_vertex_size(per_vertex_size)
 	{
 		vertices_multi = BufferMulti(max_size_vertex_buff);
@@ -207,7 +494,7 @@ public:
 		VAO = VertexArray(vertices_multi.get_buffer(), indices_multi.get_buffer(), get_vertex_attribs());
 		//glVertexAttribDivisor(3, 1);
 		indirect_draw_buffer = Buffer(20 * (max_size_index_buff / (3 * 128)) * 8, NULL);
-		mesh_information_buffer = BufferMulti(MAX_NUM_MESHES * 8);
+		mesh_information_buffer = Buffer(MAX_NUM_MESHES * 8, NULL);
 		cluster_information_buffer = BufferMulti((max_size_index_buff / (3 * 128)) * 8);
 
 		transform_matrices_buffer = Buffer(sizeof(glm::mat4) * 1000, NULL, GL_SHADER_STORAGE_BUFFER, 0, GL_STREAM_DRAW);
@@ -216,10 +503,10 @@ public:
 		culling_compute.add_ssbo_block("ClustersInfo");
 		culling_compute.add_ssbo_block("MeshInfo");
 		cluster_information_buffer.get_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 4);
-		mesh_information_buffer.get_buffer().bind_base(GL_SHADER_STORAGE_BUFFER, 5);
+		mesh_information_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 5);
 		indirect_draw_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 3);
 	}
-	void multi_draw(const Buffer& views_buff) const
+	void multi_draw() const
 	{
 		//views_buff.bind_base(GL_SHADER_STORAGE_BUFFER, 6);	//avoid putting this here
 		VAO.multi_draw_indirect(num_clusters, 0, 0);
@@ -296,6 +583,10 @@ public:
 		unsigned int num_triangles_actual,
 		std::vector<VertexAttribData> attribs
 	);
+
+	void remove_mesh(VertexArray& vao) {
+		//todo
+	}
 	
 	void debug_output_indirect_draw(std::string filename)
 	{
@@ -320,7 +611,7 @@ public:
 		file << std::endl;
 
 		file << "num_instances, base_vertex" << std::endl;
-		mesh_information_buffer.get_buffer().access(buff_data, num_meshes * sizeof(unsigned int) * 2, 0);
+		mesh_information_buffer.access(buff_data, num_meshes * sizeof(unsigned int) * 2, 0);
 		for (unsigned int i = 0; i < num_meshes * 2;i += 2)
 		{
 			file << buff_data[i] << ',' << buff_data[i + 1] << std::endl;
@@ -350,7 +641,7 @@ public:
 	}
 	void set_transform(MeshStatic* mesh, glm::mat4 transform)
 	{
-		transform_matrices_buffer.modify(&transform, sizeof(glm::mat4), vertices_multi.get_object_index(mesh->get_vao()) * sizeof(glm::mat4));
+		transform_matrices_buffer.modify(glm::value_ptr(transform), sizeof(glm::mat4), vertices_multi.get_object_index(mesh->get_vao()) * sizeof(glm::mat4));
 	}
 	void set_mat_id(MeshStatic* mesh, unsigned int  mat_id)
 	{
@@ -364,6 +655,7 @@ public:
 
 	inline unsigned int get_num_triangles_per_cluster() const { return num_triangles_per_cluster; }
 };
+*/
 
 class HigherGraphics
 {

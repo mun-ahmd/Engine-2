@@ -2,24 +2,8 @@
 
 static unsigned int placeholder_id_vertices = std::numeric_limits<unsigned int>::max() / 2;
 static unsigned int placeholder_id_indices = std::numeric_limits<unsigned int>::max() / 2;
-
-namespace ComputeShaderDataStructures
-{
-	struct ClusterInfo
-	{
-		unsigned int mesh_id;
-		unsigned int num_triangles;
-	};
-
-	struct MeshInformation
-	{
-		unsigned int num_instances;
-		unsigned int base_vertex;
-	};
-}
-
-
-std::pair<VertexArray, long long> MultiStaticMesh::add_mesh(
+/*
+std::pair<VertexArray, long long> MultiStaticMesh_OLD::add_mesh(
 	const void* vertices_data, size_t vertices_data_size,
 	const void* indices_data,
 	size_t indices_data_size,
@@ -89,18 +73,11 @@ std::pair<VertexArray, long long> MultiStaticMesh::add_mesh(
 	mesh_info.base_vertex = this->vertices_multi.get_object_offset(Mesh_VAO)/this->per_vertex_size;
 	mesh_info.num_instances = 1;
 
-	if (this->mesh_information_buffer.allocate_next(Mesh_VAO.get_id(),
-		&mesh_info,
-		sizeof(mesh_info)) == false
-		) {
-		//error
-		std::cerr << "Could not allocate mesh information buffer for static mesh: " << Mesh_VAO.get_id();
-		exit(12);
-	}
-
+	this->mesh_information_buffer.modify(&mesh_info, sizeof(mesh_info), sizeof(mesh_info) * num_meshes);
 
 	set_transform(num_meshes);
 	num_meshes += 1;
 
 	return std::pair(Mesh_VAO, indices_offset);
 }
+*/

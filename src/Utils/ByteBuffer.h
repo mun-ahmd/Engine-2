@@ -8,17 +8,18 @@ private:
 	std::vector<char> buffer;
 	uint16_t obj_size;
 public:
-	ByteBuffer(uint16_t per_obj_size = 0)
+	ByteBuffer(uint16_t per_obj_size)
 	{
 		obj_size = per_obj_size;
 	}
-	void set_obj_size(uint16_t per_obj_size)
-	{
-		buffer.clear();
-		buffer.shrink_to_fit();
-		obj_size = per_obj_size;
-	}
-	size_t size()
+	//no need for this function, just assign new bytebuffer of diff size
+	//void set_obj_size(uint16_t per_obj_size)
+	//{
+	//	buffer.clear();
+	//	buffer.shrink_to_fit();
+	//	obj_size = per_obj_size;
+	//}
+	size_t size() const
 	{
 		return buffer.size() / obj_size;
 	}
@@ -33,6 +34,7 @@ public:
 	template<class T>
 	void push(T obj)
 	{
+		assert(sizeof(T) == obj_size);
 		buffer.resize(buffer.size() + obj_size);
 		memcpy(&buffer[buffer.size() - obj_size], &obj, obj_size);
 	}
@@ -44,6 +46,10 @@ public:
 		memcpy(buffer.data() + index * obj_size, &val, obj_size);
 	}
 	char* operator [](size_t index)
+	{
+		return (&buffer[index * obj_size]);
+	}
+	const char* operator [](size_t index) const
 	{
 		return (&buffer[index * obj_size]);
 	}
