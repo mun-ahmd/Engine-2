@@ -5,3 +5,5 @@ Engine-2.sln
 .vs/*
 x64/*
 3DModelData/*
+Scene Editor/*
+scene.json
