@@ -74,9 +74,13 @@ for (auto itr = required_extensions.begin(); itr < required_extensions.end(); ++
 	{
 		//todo error
 		//renderdoc does not support extensions :(
+		//added a #define for when building for renderdoc
 		std::cout << "ERROR:: Requested Extension: " << *itr << " is not supported\n";
+#define _RENDERDOC_
+#ifndef _RENDERDOC_
 		exit(1);
 		break;
+#endif
 	}
 }
 std::cout << "ALL REQUESTED EXTENSIONS ARE SUPPORTED\n";

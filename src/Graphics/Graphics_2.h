@@ -57,18 +57,6 @@ public:
 			max_size = 0;	//done so that it does not interfere with asserts, since storage size ain't constant
 #endif
 		}
-		//if (creation_target_buffer == GL_ARRAY_BUFFER)
-		//{
-		//	float* data_got = new float[buffer_size/sizeof(float)];
-		//	glGetBufferSubData(creation_target_buffer, 0, buffer_size, data_got);
-		//	for (int i = 0; i < buffer_size / sizeof(float); i += 8)
-		//	{
-		//		//std::cout << '\n'  << data_got[i + 3] << " " << data_got[i+4] << " " << data_got[i+5] << '\n';
-		//		if (data_got[i + 3] == 0.0f && data_got[i + 4] == 0.0f && data_got[i + 5] == 0.0f)
-		//			std::cout << "bad normal";
-		//	}
-		//	delete[] data_got;
-		//}
 	}
 	inline void destroy()
 	{
@@ -76,7 +64,7 @@ public:
 	}
 	inline void modify(const void* data,size_t data_size,size_t offset)
 	{
-		assert(data_size < max_size);
+		//assert(data_size < max_size);
 		glBindBuffer(GL_ARRAY_BUFFER, id);
 		glBufferSubData(GL_ARRAY_BUFFER,offset,data_size,data);
 	}
@@ -111,7 +99,6 @@ public:
 	void bind_base(GLenum target, unsigned int binding_point) const;	//in source file
 	void bind_range(GLenum target, unsigned int binding_point, unsigned int offset, unsigned int size) const;
 };
-//even though I randomly bind to gl_array_buffer everywhere, this buffer object is to be used exclusively, so if everyone does it its not a problem
 
 struct VertexAttribData
 {
@@ -182,8 +169,8 @@ public:
 		glCreateVertexArrays(1, &id);
 		glBindVertexArray(id);
 
-		v_buffer.bind(GL_ARRAY_BUFFER);
-		i_buffer.bind(GL_ELEMENT_ARRAY_BUFFER);
+		this->v_buffer.bind(GL_ARRAY_BUFFER);
+		this->i_buffer.bind(GL_ELEMENT_ARRAY_BUFFER);
 		vertex_attributes_set(vertex_attributes);
 	}
 
@@ -370,10 +357,18 @@ protected:
 		glGenTextures(1, &id);
 		//actual handle will be created by class which inherits
 	}
+	Texture_Bindless(GLenum target) : handle(NULL), residency(false)
+	{
+		glCreateTextures(target, 1, &id);
+		glBindTexture(target, id);
+		//this will also bind the texture (to minimize number of calls)
+		//actual handle will be created by class which inherits
+	}
 public:
 	inline void destroy()
 	{
-		glMakeTextureHandleNonResidentARB(handle);
+		if(residency)
+			glMakeTextureHandleNonResidentARB(handle);
 		glDeleteTextures(1, &id);
 	}
 	inline void make_handle_resident()
@@ -390,18 +385,24 @@ public:
 	}
 	inline bool is_handle_resident() const { return residency; }
 	inline uint64_t get_handle() const { return handle; }
+	inline unsigned int get_id() const { return id; }
 
+	static Texture_Bindless __default_framebuffer_texture__() {
+		Texture_Bindless t;
+		t.id = 0;
+		t.residency = false;
+		return t;
+	}
 };
 
 class Texture_Bindless_1D : public Texture_Bindless
 {
 protected:
-	uint32_t width;
+	uint16_t width;
 public:
-	Texture_Bindless_1D(uint32_t width, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format) : width(width)
+	Texture_Bindless_1D(uint16_t width, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format) : Texture_Bindless(GL_TEXTURE_1D), width(width)
 	{
-		//Texture_Bindless constructor is called, creating a new texture
-		glBindTexture(GL_TEXTURE_1D, id);
+		//Texture_Bindless constructor is called, creating a new texture, binding it
 		glTexImage1D(GL_TEXTURE_1D, 0, internal_format, width, 0, data_format, data_type, data);
 		glGenerateMipmap(GL_TEXTURE_1D);
 
@@ -413,13 +414,17 @@ public:
 class Texture_Bindless_2D : public Texture_Bindless
 {
 protected:
-	uint32_t width;
-	uint32_t height;
+	uint16_t width;
+	uint16_t height;
+
+	Texture_Bindless_2D() : Texture_Bindless(Texture_Bindless::__default_framebuffer_texture__()), width(100), height(100) {
+		//todo not a great piece of code, but saves time for creating default framebuffer
+	}
+
 public:
-	Texture_Bindless_2D(uint32_t width,uint32_t height, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format) : width(width), height(height)
+	Texture_Bindless_2D(uint16_t width,uint16_t height, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format) : Texture_Bindless(GL_TEXTURE_2D), width(width), height(height)
 	{
-		//Texture_Bindless constructor is called, creating a new texture
-		glBindTexture(GL_TEXTURE_2D, id);
+		//Texture_Bindless constructor is called, creating a new texture, binding it
 		glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, data_format, data_type, data);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -431,18 +436,39 @@ public:
 		handle = glGetTextureHandleARB(id);
 		//no state changes after this
 	}
+
+	Texture_Bindless_2D(uint16_t width, uint16_t height, GLenum internal_format) : Texture_Bindless(GL_TEXTURE_2D), width(width), height(height)
+	{
+		//Texture_Bindless constructor is called, creating a new texture, binding it
+		glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+
+		handle = glGetTextureHandleARB(id);
+		//no state changes after this
+	}
+	inline uint16_t get_width() const { return width; }
+	inline uint16_t get_height() const { return height; }
+
+	static Texture_Bindless_2D __default_framebuffer_texture2D__() {
+		return Texture_Bindless_2D();
+	}
 };
 
 class Texture_Bindless_CubeMap: public Texture_Bindless
 {
 protected:
-	uint32_t width;	//cubemaps only have sidelength
+	uint16_t width;	//cubemaps only have sidelength
 public:
-	Texture_Bindless_CubeMap(uint32_t width, GLenum data_format, GLenum data_type,
-		const void* data_right, const void* data_left, const void* data_top, const void* data_bottom, const void* data_back, const void* data_front , GLenum internal_format) : width(width)
+	Texture_Bindless_CubeMap(uint16_t width, GLenum data_format, GLenum data_type,
+		const void* data_right, const void* data_left, const void* data_top, const void* data_bottom, const void* data_back, const void* data_front ,
+		GLenum internal_format) : Texture_Bindless(GL_TEXTURE_CUBE_MAP) ,width(width)
 	{
-		//Texture_Bindless constructor is called, creating a new texture
-		glBindTexture(GL_TEXTURE_CUBE_MAP, id);
+		//Texture_Bindless constructor is called, creating a new texture and binding it
 
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, internal_format, width,width, 0, data_format, data_type, data_right);
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, internal_format, width, width, 0, data_format, data_type, data_left);
@@ -464,10 +490,10 @@ public:
 		//no state changes after this
 	}
 
-	Texture_Bindless_CubeMap(uint32_t width, GLenum data_format, GLenum data_type, std::array<const void*,6> data, GLenum internal_format) : width(width)
+	Texture_Bindless_CubeMap(uint16_t width, GLenum data_format, GLenum data_type, std::array<const void*,6> data, GLenum internal_format)
+		: Texture_Bindless(GL_TEXTURE_CUBE_MAP) ,width(width)
 	{
-		//Texture_Bindless constructor is called, creating a new texture
-		glBindTexture(GL_TEXTURE_CUBE_MAP, id);
+		//Texture_Bindless constructor is called, creating a new texture, binding it
 
 		for (int i = 0; i < 6; ++i)
 		{
@@ -489,14 +515,14 @@ public:
 class Texture_Bindless_3D : public Texture_Bindless
 {
 protected:
-	uint32_t width;
-	uint32_t height;
-	uint32_t depth;
+	uint16_t width;
+	uint16_t height;
+	uint16_t depth;
 public:
-	Texture_Bindless_3D(uint32_t width, uint32_t height, uint32_t depth, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format) : width(width), height(height), depth(depth)
+	Texture_Bindless_3D(uint16_t width, uint16_t height, uint16_t depth, GLenum data_format, GLenum data_type, const void* data, GLenum internal_format)
+		: Texture_Bindless(GL_TEXTURE_3D), width(width), height(height), depth(depth)
 	{
-		//Texture_Bindless constructor is called, creating a new texture
-		glBindTexture(GL_TEXTURE_3D, id);
+		//Texture_Bindless constructor is called, creating a new texture and binding it
 		glTexImage3D(GL_TEXTURE_3D, 0, internal_format, width, height, depth, 0, data_format, data_type, data);
 		glGenerateMipmap(GL_TEXTURE_3D);
 
@@ -512,122 +538,155 @@ typedef Texture_Bindless_CubeMap Texture_CubeMap;
 typedef Texture_Bindless_3D Texture_3D;
 
 
-struct FramebufferAttachmentInfo
-{
-	bool texture_true_renderbuffer_false = true;
-	int width = NULL;
-	int height = NULL;
-	GLenum internal_format;
+class Renderbuffer {
+private:
+	unsigned int id;
+	uint16_t width;
+	uint16_t height;
+public:
+	Renderbuffer(uint16_t width, uint16_t height, GLenum internal_format) : width(width), height(height) {
+		glCreateRenderbuffers(1, &id);
+		glNamedRenderbufferStorage(id, internal_format, width, height);
+	}
+
+	inline void destroy() {
+		glDeleteRenderbuffers(1, &id);
+	}
+
+	inline unsigned int get_id() const { return id; }
+	inline uint16_t get_width() const { return width; }
+	inline uint16_t get_height() const { return height; }
+
 };
 
-struct Texture_RenderbufferID
+
+struct FramebufferAttachment
 {
-public:
-	Texture_RenderbufferID() = default;
-	bool isTexture;
-	union
-	{
-		Texture_Traditional texture;
-		unsigned int renderbuffer_id;
+	const bool is_draw_buffer;
+	const bool is_texture;
+	const union {
+		Texture_Bindless_2D texture;
+		Renderbuffer renderbuffer;
 	};
+
+	FramebufferAttachment(Texture_Bindless_2D texture, bool is_draw_buffer)
+		: texture(texture), is_texture(true), is_draw_buffer(is_draw_buffer) {}
+	FramebufferAttachment(Renderbuffer renderbuffer, bool is_draw_buffer)
+		: renderbuffer(renderbuffer), is_texture(false), is_draw_buffer(is_draw_buffer) {}
+
+	uint16_t get_width() {
+		if (is_texture)
+			return texture.get_width();
+		else
+			return renderbuffer.get_width();
+	}
+	uint16_t get_height() {
+		if (is_texture)
+			return texture.get_height();
+		else
+			return renderbuffer.get_height();
+	}
+};
+
+enum class DepthStencilAttachType {
+	ONLY_DEPTH = GL_DEPTH_ATTACHMENT,
+	ONLY_STENCIL = GL_STENCIL_ATTACHMENT,
+	BOTH_DEPTH_STENCIL = GL_DEPTH_STENCIL_ATTACHMENT,
+	DEFAULT_FRAMEBUFFER
 };
 
 class Framebuffer
 {
 private:
 	unsigned int id;
-	int width, height;
-	std::vector<Texture_Traditional> color_attachments;
-	Texture_RenderbufferID depth_stencil_attachment;
-	GLenum depth_attach_desc = NULL;
-	static unsigned int create_renderbuffer(GLenum internal_format,int width_in, int height_in)
-	{
-		unsigned int id_renderbuffer;
-		glCreateRenderbuffers(1, &id_renderbuffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, id_renderbuffer);
-		glRenderbufferStorage(GL_RENDERBUFFER, internal_format, width_in, height_in);
-		return id_renderbuffer;
+	uint16_t width, height;
+	std::vector<FramebufferAttachment> color_attachments;
+
+	DepthStencilAttachType depth_stencil_attach_type;
+	FramebufferAttachment depth_stencil_attachment;
+
+	Framebuffer(uint16_t width, uint16_t height) : width(width), height(height),
+		id(0), depth_stencil_attachment(FramebufferAttachment(Texture_Bindless_2D::__default_framebuffer_texture2D__(),1)),
+		depth_stencil_attach_type(DepthStencilAttachType::DEFAULT_FRAMEBUFFER) {
+		//todo again not a great piece of code (pretty bad actually), but saves dev time
 	}
 public:
-	Framebuffer(int width_in, int height_in,std::vector<FramebufferAttachmentInfo> attachments)
+	Framebuffer(uint16_t width, uint16_t height, 
+		std::vector<FramebufferAttachment> color_attachments,
+		FramebufferAttachment depth_stencil_attachment,
+		DepthStencilAttachType depth_stencil_attach_type = DepthStencilAttachType::BOTH_DEPTH_STENCIL
+	)
+		: width(width), height(height),
+		color_attachments(color_attachments),
+		depth_stencil_attachment(depth_stencil_attachment),
+		depth_stencil_attach_type(depth_stencil_attach_type)
 	{
-		width = width_in, height = height_in;
+		assert(color_attachments.size() >= 1);
 		glCreateFramebuffers(1, &id);
-		glBindFramebuffer(GL_FRAMEBUFFER, id);
 
-		//NOW BEHOLD MY GREAT SPAGHETTI DISH
-		
-		color_attachments.reserve(attachments.size());
-		int color_attachment_curr = 0;
-		auto attach = attachments.begin();
-		for (;attach < attachments.end(); attach++)
-		{
-			bool isColor = true;
-			GLenum format = attach->internal_format;
-			if (attach->width == NULL)
-				attach->width = width;
-			if (attach->height == NULL)
-				attach->height = height;
-			if (format == GL_DEPTH24_STENCIL8 || format == GL_DEPTH32F_STENCIL8)
-			{
-				if (depth_attach_desc != NULL)
-				{
-					//todo error
-					exit(1);
-				}
-				depth_attach_desc = GL_DEPTH_STENCIL_ATTACHMENT;
-				format = GL_DEPTH_STENCIL;
-				isColor = false;
-			}
-			else if (format == GL_DEPTH_COMPONENT16 || format == GL_DEPTH_COMPONENT24 || format == GL_DEPTH_COMPONENT32 || format == GL_DEPTH_COMPONENT32F)
-			{
-				if (depth_attach_desc != NULL)
-				{
-					//todo error
-					exit(1);
-				}
-				depth_attach_desc = GL_DEPTH_ATTACHMENT;
-				format = GL_DEPTH_COMPONENT;
-				isColor = false;
-			}
-			if (attach->texture_true_renderbuffer_false)
-			{
-				if (format == GL_DEPTH_COMPONENT || format == GL_DEPTH_STENCIL)
-				{
-					depth_stencil_attachment.isTexture = true;
-					depth_stencil_attachment.texture = Texture_Traditional::create_tex2D(attach->width, attach->height, attach->internal_format, format);
-					//texture creation leaves it bound to relevent target
-					glFramebufferTexture2D(GL_FRAMEBUFFER, depth_attach_desc,GL_TEXTURE_2D,depth_stencil_attachment.texture.get_id(),0);
-				}
-				else
-				{
-					color_attachments.push_back(Texture_Traditional::create_tex2D(attach->width, attach->height, attach->internal_format, format));
-					//texture creation leaves it bound to relevent target
+		unsigned int color_attachment_i = 0;
+		std::vector<GLenum> draw_color_attachments;
+		draw_color_attachments.reserve(this->color_attachments.size());
+		for (const auto& attach : this->color_attachments) {
+			if (attach.is_draw_buffer)
+				draw_color_attachments.push_back(GL_COLOR_ATTACHMENT0 + color_attachment_i);
 
-					glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + color_attachment_curr,GL_TEXTURE_2D,color_attachments.back().get_id(),0);
-					color_attachment_curr += 1;
-				}
-			}
+			if (attach.is_texture)
+				glNamedFramebufferTexture(id, GL_COLOR_ATTACHMENT0 + color_attachment_i, attach.texture.get_id(), 0);
 			else
-			{
-				assert(format == GL_DEPTH_COMPONENT || format == GL_DEPTH_STENCIL);
-				depth_stencil_attachment.isTexture = false;
-				depth_stencil_attachment.renderbuffer_id = Framebuffer::create_renderbuffer(attach->internal_format, attach->width, attach->height);
-				//create_renderbuffer leaves it bound
-				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-					GL_RENDERBUFFER, depth_stencil_attachment.renderbuffer_id);
-
-			}
+				glNamedFramebufferRenderbuffer(id, GL_COLOR_ATTACHMENT0 + color_attachment_i,GL_RENDERBUFFER, attach.renderbuffer.get_id());
+			
+			color_attachment_i++;
 		}
+		glNamedFramebufferDrawBuffers(id, draw_color_attachments.size(), draw_color_attachments.data());
 
+		if (depth_stencil_attachment.is_texture)
+			glNamedFramebufferTexture(id, (GLenum)depth_stencil_attach_type, depth_stencil_attachment.texture.get_id(), 0);
+		else
+			glNamedFramebufferRenderbuffer(id, (GLenum)depth_stencil_attach_type, GL_RENDERBUFFER, depth_stencil_attachment.renderbuffer.get_id());
 
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		{
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			//todo handle
 			std::cout << "error in framebuffer creation";
 			exit(10);
 		}
 	}
-	Framebuffer(int width_in, int height_in)	:	width(width_in), height(height_in), id(0){}	//default framebuffer
+
+	static Framebuffer default_framebuffer(uint32_t width, uint32_t height) {
+		return Framebuffer(width, height);
+	}
+
+	inline void bind(GLenum target) {
+		glBindFramebuffer(target, id);
+	}
+	
+	inline uint16_t get_width() const { return width; }
+	inline uint16_t get_height() const { return height; }
+	inline unsigned int get_id() const { return id; }
+	inline auto& get_color_attachments() { return this->color_attachments; }
+
+	inline void set_read_buffer(unsigned int color_attachment_index) {
+		glNamedFramebufferReadBuffer(id, GL_COLOR_ATTACHMENT0 + color_attachment_index);
+	}
+
+	static void blit(const Framebuffer& source, Framebuffer& dest, GLenum mask, GLenum filter = GL_LINEAR) {
+		auto X1 = std::min(source.width, dest.width);
+		auto Y1 = std::min(source.height, dest.height);
+		glBlitNamedFramebuffer(source.id, dest.id, 0, 0, X1, Y1, 0, 0, X1, Y1, mask, filter);
+	}
+
+	static void blit(const Framebuffer& source, Framebuffer& dest, 
+		uint16_t src_x_0, uint16_t src_x_1, uint16_t src_y_0, uint16_t src_y_1,
+		uint16_t dest_x_0, uint16_t dest_x_1, uint16_t dest_y_0, uint16_t dest_y_1,
+		GLenum mask, GLenum filter = GL_LINEAR)
+	{
+		//todo write assert to check bounds
+		glBlitNamedFramebuffer(
+			source.id, dest.id,
+			src_x_0, src_y_0, src_x_1, src_y_1,
+			dest_x_0, dest_y_0, dest_x_1, dest_y_1,
+			mask, filter);
+	}
 };
 
 class Pipeline
@@ -688,7 +747,6 @@ private:
 
 	std::unordered_map<std::string, int> sampler_uniform_locations;
 
-	Framebuffer framebuffer_output;
 
 public:
 	static void link_shader_to_program_and_delete_shader(unsigned int _Shader, unsigned int _Program)
@@ -765,7 +823,7 @@ public:
 			return "";
 		}
 	}
-	Pipeline(std::string vertex_shader_loc, std::string fragment_shader_loc,Framebuffer framebuffer) : framebuffer_output(framebuffer)
+	Pipeline(std::string vertex_shader_loc, std::string fragment_shader_loc)
 	{
 		program = glCreateProgram();
 #ifndef NDEBUG
