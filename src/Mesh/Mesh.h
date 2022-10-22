@@ -31,14 +31,22 @@ struct VertexDataAny {
 	VertexDataAny() = default;
 };
 
+template<typename T>
+struct MeshData {
+	std::vector<T> vertices;
+	std::vector<unsigned int> indices;
+	std::optional<std::any> other;
+	MeshData() = default;
+	MeshData(std::vector<T> vertices, std::vector<unsigned int> indices) : vertices(vertices), indices(indices) {};
+};
+
+
 class Mesh
 {
 protected:
 public:
 	virtual ~Mesh() {}
-	virtual Vertex_Data_Type get_vertex_data_type() = 0;
-	virtual VertexDataAny get_vertex_data() = 0;
-	virtual std::vector<unsigned int> get_indices() = 0;
+	virtual std::any get_mesh_data_pointer() = 0;
 };
 
 struct Vertex3
@@ -51,88 +59,79 @@ struct Vertex3
 class Mesh3 : public Mesh
 {
 private:
-	bool dataLoaded = false;
-	Vertex_Data_Type dataType = pos_norm_uv;
-	std::vector<Vertex3> verts;
-	std::vector<unsigned int> indices;
+	MeshData<Vertex3> data;
+	Buffer vertex_buff;
+	Buffer index_buff;
 	VertexArray VAO;
-	void setupVAO()
+
+	void setup_VAO()
 	{
-		std::vector<VertexAttribData> attribs(3);
-		attribs[0].type = GL_FLOAT;
-		attribs[0].normalized = false;
-		attribs[0].attrib_size = 3;
-		attribs[0].offset = 0;
-		attribs[0].stride = 8 * sizeof(float);
+		std::vector<VertexAttribData> attribs = { 
+			VertexAttribData(3, GL_FLOAT, false, 8 * sizeof(float), 0),
+			VertexAttribData(3, GL_FLOAT, true, 8 * sizeof(float), 3 * sizeof(float)),
+			VertexAttribData(2, GL_FLOAT, false, 6 * sizeof(float), 0) 
+		};
 
-		attribs[1] = attribs[0];
-		attribs[1].normalized = true;
-		attribs[1].offset = 3 * sizeof(float);
+		//std::vector<VertexAttribData> attribs(3);
+		//attribs[0].type = GL_FLOAT;
+		//attribs[0].normalized = false;
+		//attribs[0].attrib_size = 3;
+		//attribs[0].offset = 0;
+		//attribs[0].stride = 8 * sizeof(float);
 
-		attribs[2] = attribs[0];
-		attribs[2].attrib_size = 2;
-		attribs[2].offset = 6 * sizeof(float);
+		//attribs[1] = attribs[0];
+		//attribs[1].normalized = true;
+		//attribs[1].offset = 3 * sizeof(float);
 
-		VAO = VertexArray(sizeof(Vertex3) * this->verts.size(), this->verts.data(), indices.size() * sizeof(unsigned int), indices.data(), attribs, GL_STATIC_DRAW);
+		//attribs[2] = attribs[0];
+		//attribs[2].attrib_size = 2;
+		//attribs[2].offset = 6 * sizeof(float);
+
+		VAO = VertexArray(vertex_buff, index_buff, attribs);
 	}
+
 public:
-	Vertex_Data_Type get_vertex_data_type() override {
-		return pos_norm_uv;
-	}
-	VertexDataAny get_vertex_data() override {
-		VertexDataAny v_data;
-		v_data.positions = std::vector<glm::vec3>();
-		v_data.positions->reserve(this->verts.size());
+	typedef const MeshData<Vertex3>* MeshDataPointerType;
+	~Mesh3() {
 
-		v_data.normals = std::vector<glm::vec3>();
-		v_data.normals->reserve(this->verts.size());
-
-		v_data.uvs = std::vector<glm::vec2>();
-		v_data.uvs->reserve(this->verts.size());
-
-		for (auto p = this->verts.begin(); p < this->verts.end(); ++p)
-		{
-			v_data.positions->push_back(p->pos);
-			v_data.normals->push_back(p->norm);
-			v_data.uvs->push_back(p->uv);
-		}
-		return v_data;
-	}
-	std::vector<unsigned int> get_indices() override {
-		return this->indices;
-	}
-	void setupMesh(float* pos, float* norms, float* uv, float* additionalPerVertexData, unsigned int* face_indices, size_t len);
-	void setupMesh(float* interleaved_data, size_t num_vertices, unsigned int* face_indices, size_t num_indices);	//only accepts triangles
-	VertexData getMeshData()
-	{
-		VertexData data;
-		data.type = pos_norm_uv;
-		data.verts_data_size = verts.size() * (sizeof(Vertex3) / sizeof(float) );
-		data.verts_data = (float*)verts.data();
-
-		data.indices_data_size = indices.size();
-		data.indices_data = indices.data();
-
-		return data;
 	}
 
-	void draw()
-	{
-		VAO.draw(indices.size());
+	Mesh3(const MeshData<Vertex3>&& data) : data(data),
+		index_buff(Buffer(sizeof(unsigned int)* data.indices.size(), data.indices.data())),
+		vertex_buff(Buffer(sizeof(Vertex3)* data.vertices.size(), data.vertices.data())) {
+		VAO = VertexArray(vertex_buff, index_buff, {
+			VertexAttribData(3, GL_FLOAT, false, 8 * sizeof(float), 0),
+			VertexAttribData(3, GL_FLOAT, true, 8 * sizeof(float), 3 * sizeof(float)),
+			VertexAttribData(2, GL_FLOAT, false, 6 * sizeof(float), 0)
+			});
+	}
+	Mesh3(const MeshData<Vertex3>& data) : data(data),
+		index_buff(Buffer(sizeof(unsigned int)* data.indices.size(), data.indices.data())),
+		vertex_buff(Buffer(sizeof(Vertex3)* data.vertices.size(), data.vertices.data())) {
+		VAO = VertexArray(vertex_buff, index_buff, {
+			VertexAttribData(3, GL_FLOAT, false, 8 * sizeof(float), 0),
+			VertexAttribData(3, GL_FLOAT, true, 8 * sizeof(float), 3 * sizeof(float)),
+			VertexAttribData(2, GL_FLOAT, false, 6 * sizeof(float), 0)
+			});
 	}
 
-	inline VertexArray get_vertex_array()
-	{
+	std::any get_mesh_data_pointer() override {
+		return std::make_any<MeshDataPointerType>(static_cast<MeshDataPointerType>(&this->data));
+	}
+	inline const MeshData<Vertex3>& get_mesh_data(){
+		return this->data;
+	}
+	inline void draw(){
+		VAO.draw(data.indices.size());
+	}
+	inline VertexArray get_vertex_array(){
 		return this->VAO;
 	}
-
-	std::pair<std::vector<Vertex3>, std::vector<unsigned int>> debug_get_arrays()
-	{
-		return std::pair(verts, indices);
+	inline void destroy() {
+		this->VAO.destroy();
 	}
 
 };
-
 
 //forward declaration
 class MultiStaticMesh;
@@ -140,13 +139,14 @@ class MultiStaticMesh;
 class MeshStatic
 {
 private:
-	std::vector<Vertex3> vertices;
-	std::vector<unsigned int> indices;
+	MeshData<Vertex3> mesh;
 
 	uint32_t static_mesh_id;
 
 	void setup_mesh();
 
+
+public:
 	static std::vector<VertexAttribData> get_vertex_attribs(size_t base_offset)
 	{
 		std::vector<VertexAttribData> attribs(3);
@@ -166,16 +166,19 @@ private:
 
 		return attribs;
 	}
-public:
+
 	static void prepare_indirect_draw_buffer();
 	static MultiStaticMesh& get_static_meshes_holder();
 
-
-	MeshStatic(std::vector<Vertex3> vertices, std::vector<unsigned int> indices) : vertices(vertices), indices(indices)
+	MeshStatic(const MeshData<Vertex3>&& data) : mesh(data)
 	{
 		setup_mesh();
-		std::cout << "Mesh Size : " << sizeof(Vertex3) * vertices.size() + sizeof(unsigned int) * indices.size() << std::endl;
 	}
+	MeshStatic(const MeshData<Vertex3>& data) : mesh(data)
+	{
+		setup_mesh();
+	}
+
 	static Buffer debug_get_multi_draw_buff();
 	static void multi_draw_static_meshes(Buffer indirect_buffer, unsigned int indirect_buffer_offset = 0);
 	void draw();

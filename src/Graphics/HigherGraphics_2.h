@@ -83,7 +83,7 @@ public:
 			return false;
 		}
 		buff.modify(data, data_size, size_used);
-		offsets_ids.push_back(std::pair(size_used, id));
+		offsets_ids.push_back(std::make_pair(size_used, id));
 		size_used += data_size;
 		id_to_index[id] = offsets_ids.size() - 1;
 		return true;

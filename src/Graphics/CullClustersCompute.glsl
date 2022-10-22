@@ -5,18 +5,6 @@ struct Vertex	//weird store to prevent allignment issues
 {
 	vec4 pos_normX;
 	vec4 normYZ_uv;
-	vec3 pos()
-	{
-		return pos_normX.xyz;
-	}
-	vec3 norm()
-	{
-		return vec3(pos_normX.w,normYZ_uv.xy);
-	}
-	vec2 uv()
-	{
-		return vec2(normYZ_uv.zw);
-	}
 };
 struct Triangle
 {
@@ -26,8 +14,8 @@ struct Triangle
 };
 struct ClusterInfo
 {
-	unsigned int mesh_id;
-	unsigned int num_triangles;
+	uint mesh_id;
+	uint num_triangles;
 };
 struct Cluster	//no padding required
 {
@@ -35,16 +23,16 @@ struct Cluster	//no padding required
 };
 struct MeshInformation
 {
-	unsigned int num_instances;
-	unsigned int base_vertex;
+	uint num_instances;
+	uint base_vertex;
 };
 struct IndirectDrawInfo
 {
-	unsigned int  count;
-	unsigned int  instanceCount;
-	unsigned int  firstIndex;
-	unsigned int  baseVertex;
-	unsigned int  baseInstance;
+	uint  count;
+	uint instanceCount;
+	uint firstIndex;
+	uint baseVertex;
+	uint baseInstance;
 };
 
 

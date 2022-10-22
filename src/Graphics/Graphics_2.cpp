@@ -9,8 +9,8 @@ GLFWwindow* openWindow() //opens a window and returns it as an object using glfw
 		return NULL;
 	}
 	glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); //want OpenGL 4.3
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); //want OpenGL 4.5
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //want modern opengl
 
@@ -117,6 +117,7 @@ struct target_bindings_info
 		case GL_SHADER_STORAGE_BUFFER: return ssbo_bindings;
 			break;
 		default: std::cout << "ERROR INVALID BINDING REQUESTED";
+			//todo wtf is this bruh
 			auto x = (std::unordered_map<unsigned int, binding_point_info> )0;
 			return x;
 			break;
@@ -135,7 +136,8 @@ void Buffer::bind_base(GLenum target, unsigned int binding_point) const
 	glBindBufferBase(target, binding_point, this->id);
 
 #ifndef NDEBUG
-	targetBindingsInformation.get(target)[binding_point] = binding_point_info(*this,0,0);
+	//todo no more wtf is this
+	//targetBindingsInformation.get(target)[binding_point] = binding_point_info(*this,0,0);
 #endif
 }
 

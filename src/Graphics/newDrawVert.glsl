@@ -10,12 +10,12 @@ layout (std140) uniform Matrices
     mat4 view;
 };
 
-layout (std430,binding = 0) buffer Transformations
+layout (std430) buffer Transformations
 {
     mat4 models[];
 };
 
-layout (std430,binding = 6) buffer MaterialIds
+layout (std430) buffer MaterialIds
 {
     uint material_ids[];
 };

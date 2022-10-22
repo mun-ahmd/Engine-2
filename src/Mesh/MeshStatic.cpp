@@ -19,7 +19,12 @@ void MeshStatic::prepare_indirect_draw_buffer()
 
 void MeshStatic::setup_mesh()
 {
-	auto optional_mesh_id = static_meshes_container.add_mesh(this->vertices.data(), this->vertices.size(), this->indices.data(), this->indices.size());
+	auto optional_mesh_id = static_meshes_container.add_mesh(
+		this->mesh.vertices.data(),
+		this->mesh.vertices.size(),
+		this->mesh.indices.data(),
+		this->mesh.indices.size()
+	);
 	if (optional_mesh_id.has_value() == false) {
 		//todo eroor handle
 		std::cerr << "Could not setup static mesh buffer";
