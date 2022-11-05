@@ -9,6 +9,11 @@ if(NOT EXISTS ${Engine2_SOURCE_DIR}/lib/glfw/build)
         COMMAND cmake -S ${Engine2_SOURCE_DIR}/lib/glfw -B ${Engine2_SOURCE_DIR}/lib/glfw/build
         OUTPUT_VARIABLE GLFW_BUILD
     )
+    execute_process(
+        COMMAND make
+        OUTPUT_VARIABLE GLFW_MAKE
+     	WORKING_DIRECTORY ${Engine2_SOURCE_DIR}/lib/glfw/build
+     )
     message("BUILT GLFW")
 endif()
 

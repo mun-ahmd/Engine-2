@@ -697,8 +697,8 @@ int main()
 	glfwGetWindowSize(window, &window_width, &window_height);
 	Framebuffer defaultfbo = Framebuffer::default_framebuffer(window_width,window_height);
 	Pipeline pipe = Pipeline(
-		R"(C:\Users\munee\source\repos\Engine-2\src\Graphics\newDrawVert.glsl)",
-		R"(C:\Users\munee\source\repos\Engine-2\src\Graphics\newDrawFrag.glsl)");
+		R"(src/Graphics/newDrawVert.glsl)",
+		R"(src/Graphics/newDrawFrag.glsl)");
 
 	glm::mat4 projection_matrix = glm::perspective(
 			glm::radians(45.0f),	//field of view = 45 degrees
@@ -746,7 +746,7 @@ int main()
 
 	std::vector<glm::vec4> material_data;
 
-	for (const auto& file : std::filesystem::directory_iterator("C:\\Users\\munee\\source\\repos\\Engine-2\\3DModelData\\birchTwoMesh")) {
+	for (const auto& file : std::filesystem::directory_iterator("Example/birchTwoMesh")) {
 		std::string filepath_string = file.path().string();
 		treeModel.push_back(MeshStaticAsset(filepath_string.c_str()));
 
@@ -798,8 +798,8 @@ int main()
 		FramebufferAttachment(Texture_2D(shadow_width, shadow_height, GL_DEPTH_COMPONENT), false),
 		DepthStencilAttachType::ONLY_DEPTH);
 	Pipeline shadow_pipe(
-		R"(C:\Users\munee\source\repos\Engine-2\src\Graphics\ShadowVert.glsl)",
-		R"(C:\Users\munee\source\repos\Engine-2\src\Graphics\ShadowFrag.glsl)");
+		R"(src/Graphics/ShadowVert.glsl)",
+		R"(src/Graphics/ShadowFrag.glsl)");
 	shadow_pipe.add_pipeline_uniform_block("Matrices");
 	shadow_pipe.bind_pipeline_uniform_block("Matrices", 2);
 
@@ -825,14 +825,14 @@ int main()
 		gbuffer_handles[i] = otherfbo.get_color_attachments()[i].texture.get_handle();
 	}
 
-	Pipeline depthTexToBuffer(R"(src\Graphics\FullScreenVert.glsl)", R"(src\Graphics\TextureToDepthFrag.glsl)");
+	Pipeline depthTexToBuffer(R"(src/Graphics/FullScreenVert.glsl)", R"(src/Graphics/TextureToDepthFrag.glsl)");
 
 	glProgramUniformHandleui64ARB(depthTexToBuffer.get_program(),
 		glGetAttribLocation(depthTexToBuffer.get_program(), "depth_texture"),
 		otherfbo.get_color_attachments()[2].texture.get_handle());
 
 
-	Pipeline materialPipe(R"(src\Graphics\MaterialShaderVert.glsl)", R"(src\Graphics\MaterialShader.glsl)");
+	Pipeline materialPipe(R"(src/Graphics/MaterialShaderVert.glsl)", R"(src/Graphics/MaterialShader.glsl)");
 	Buffer material_buff(material_data.size() * sizeof(glm::vec4), material_data.data());
 	materialPipe.add_pipeline_ssbo_block("Materials");
 	Buffer material_id(sizeof(uint32_t), NULL);
