@@ -11,7 +11,7 @@
 #include <optional>
 #include <tuple>
 #include <numeric>
-
+#include <cstring>
 
 
 class Graphics
@@ -1275,9 +1275,15 @@ public:
 
 	inline UniformInfo uniform_block_var(std::string block, std::string var_name) {
 		auto members = uniform_block(block).members;
-		if (std::find(members.begin(), members.end(), var_name) == members.end()) {
+		auto found = members.begin();
+		for(found; found < members.end(); found += 1){
+			if(*found == var_name){
+				break;
+			}
+		}
+		if (found == members.end()) {
 			//todo error
-			throw std::exception("DID NOT FIND");
+			throw std::make_exception_ptr("DID NOT FIND");
 		}
 		return uniform(var_name);
 	}
@@ -1292,7 +1298,7 @@ public:
 				return member;
 		}
 		//todo error
-		throw std::exception("DID NOT FIND");
+		throw std::make_exception_ptr("DID NOT FIND");
 	}
 
 	PipelineProps(Pipeline& pipe) {
@@ -1628,8 +1634,8 @@ public:
 };
 
 
-static const std::string fullscreen_vert_file = "src\\Graphics\\FullScreenVert.glsl";
-static const std::string debug_tex_draw_frag_file = "src\\Graphics\\DebugTexDrawFrag.glsl";
+static const std::string fullscreen_vert_file = "src/Graphics/FullScreenVert.glsl";
+static const std::string debug_tex_draw_frag_file = "src/Graphics/DebugTexDrawFrag.glsl";
 
 class DebugTextureDrawer {
 private:

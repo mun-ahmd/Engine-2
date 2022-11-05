@@ -229,11 +229,12 @@ glm::mat4 compute_dir_lightspace(const glm::mat4& proj, const glm::mat4& view, c
 				near = c.z < near.z ? c : near;
 				far = c.z > far.z ? c : far;
 			}
-	return glm::ortho(left.x, right.x, bottom.y, top.y, near.z, far.z);
+	// return glm::ortho(left.x, right.x, bottom.y, top.y, near.z, far.z);
 	return proj*view;
 }
-
+#include <filesystem>
 int main() {
+	std::cout << std::filesystem::current_path();	
 	GLFWwindow* window = Graphics::InitiateGraphicsLib({ "GL_ARB_bindless_texture" });
 	static int width, height;
 	glfwGetWindowSize(window, &width, &height);
@@ -249,10 +250,10 @@ int main() {
 	
 	//Graphics resources
 	struct {
-		Pipeline geometry = Pipeline(R"(src\Graphics\newDrawVert.glsl)", R"(src\Graphics\newDrawFrag.glsl)");
-		Pipeline texture_to_depth_attachment = Pipeline(R"(src\Graphics\FullScreenVert.glsl)", R"(src\Graphics\TextureToDepthFrag.glsl)");
-		Pipeline material = Pipeline(R"(src\Graphics\MaterialShaderVert.glsl)", R"(src\Graphics\MaterialShader.glsl)");
-		Pipeline shadow_mapper = Pipeline(R"(src\Graphics\shadowVert.glsl)", R"(src\Graphics\shadowFrag.glsl)");
+		Pipeline geometry = Pipeline(R"(src/Graphics/newDrawVert.glsl)", R"(src/Graphics/newDrawFrag.glsl)");
+		Pipeline texture_to_depth_attachment = Pipeline(R"(src/Graphics/FullScreenVert.glsl)", R"(src/Graphics/TextureToDepthFrag.glsl)");
+		Pipeline material = Pipeline(R"(src/Graphics/MaterialShaderVert.glsl)", R"(src/Graphics/MaterialShader.glsl)");
+		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/Shaders/shadowVert.glsl)", R"(src/Graphics/Shaders/shadowFrag.glsl)");
 
 	} pipes;
 	struct {
@@ -309,16 +310,16 @@ int main() {
 		DemoMesh(MeshStaticAsset mesh, glm::mat4 model, uint32_t mat_id) : mesh(mesh), model(model), mat_id(mat_id) {}
 	};
 	std::vector<DemoMesh> demo_meshes;
-	for (const auto& file : std::filesystem::directory_iterator("C:\\Users\\munee\\source\\repos\\Engine-2\\3DModelData\\birchTwoMesh")) {
+	for (const auto& file : std::filesystem::directory_iterator("3DModelData/birchTwoMesh")) {
 		std::string filepath_string = file.path().string();
 		constexpr glm::vec4 leafColor = (glm::vec4(250, 187, 148, 255) / 255.f);
-		if (filepath_string == R"(C:\Users\munee\source\repos\Engine-2\3DModelData\birchTwoMesh\2_Birch_Leaf_Autumn_1.twomesh)")
+		if (filepath_string == R"(3DModelData/birchTwoMesh/2_Birch_Leaf_Autumn_1.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(C:\Users\munee\source\repos\Engine-2\3DModelData\birchTwoMesh\0_Leaves_Mesh.003.twomesh)")
+		else if (filepath_string == R"(3DModelData/birchTwoMesh/0_Leaves_Mesh.003.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(C:\Users\munee\source\repos\Engine-2\3DModelData\birchTwoMesh\1_Material.001.twomesh)")
+		else if (filepath_string == R"(3DModelData/birchTwoMesh/1_Material.001.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(C:\Users\munee\source\repos\Engine-2\3DModelData\birchTwoMesh\3_Bark_and_Branches_Mesh.005.twomesh)")
+		else if (filepath_string == R"(3DModelData/birchTwoMesh/3_Bark_and_Branches_Mesh.005.twomesh)")
 			materials.push_back(glm::vec4(175, 157, 153, 255)/255.f);
 		else {
 			std::cout << std::endl << filepath_string << std::endl;
@@ -498,7 +499,7 @@ int main() {
 
 		default_fbo.bind(GL_FRAMEBUFFER);
 		default_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		tex_drawer(textures.shadow_map);
+		tex_drawer(textures.material_pass_out);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

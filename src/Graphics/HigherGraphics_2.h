@@ -196,7 +196,7 @@ private:
 	unsigned int num_meshes = 0;
 	unsigned int num_clusters = 0;
 
-	ComputeShader culling_compute = ComputeShader("src\\Graphics\\CullClustersCompute.glsl");
+	ComputeShader culling_compute = ComputeShader("src/Graphics/CullClustersCompute.glsl");
 
 	inline size_t add_mesh_store_info(size_t vertices_data_size, size_t indices_data_size) {
 		MeshStoreOffsetInfo info;

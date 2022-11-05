@@ -6,4 +6,7 @@ Engine-2.sln
 x64/*
 3DModelData/*
 Scene Editor/*
+build/*
+.vscode/*
+lib/glfw/build/*
 scene.json

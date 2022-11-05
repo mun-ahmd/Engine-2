@@ -49,19 +49,19 @@ private:
 	//that is fine because it is not intended anyway and that would also cause a data race
 	//for multithreading it is much preferred that a single view is split into however many and they are used per thread
 
-	template<std::size_t I = 0, typename... Types>
-	inline typename std::enable_if<I == sizeof...(Types), void>::type
-		iterate_tuple(std::tuple<Types...>& t)
+	template<std::size_t I = 0, typename... Types_>
+	inline typename std::enable_if<I == sizeof...(Types_), void>::type
+		iterate_tuple(std::tuple<Types_...>& t)
 	{ }
 
-	template<std::size_t I = 0, typename... Types>
-	inline typename std::enable_if < I < sizeof...(Types), void>::type
-		iterate_tuple(std::tuple<Types...>& t)
+	template<std::size_t I = 0, typename... Types_>
+	inline typename std::enable_if < I < sizeof...(Types_), void>::type
+		iterate_tuple(std::tuple<Types_...>& t)
 	{
-		using argType = std::tuple_element<I, std::tuple<Types...>>;
+		using argType = std::tuple_element<I, std::tuple<Types_...>>;
 		std::get<I>(container_for_general_iterate) = this->get_ptr<I>(index_for_general_iterate);
 
-		iterate_tuple<I + 1, Types...>(t);
+		iterate_tuple<I + 1, Types_...>(t);
 	}
 
 

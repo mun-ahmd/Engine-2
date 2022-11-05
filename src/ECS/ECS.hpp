@@ -78,7 +78,7 @@ public:
 	template <class ComponentType>
 	void register_component()
 	{
-		component_data_map[get_type_id<ComponentType>()].init<ComponentType>();
+		component_data_map[get_type_id<ComponentType>()].template init<ComponentType>();
 	}
 
 	void register_system(std::function<void(ECSmanager&)> system_to_register)
@@ -144,7 +144,7 @@ public:
 	template<class arg, class... args>
 	void get_components(Entity entity, arg* curr, args*... future)
 	{
-		curr = get_pool<arg>().get_component<arg>(entity);
+		curr = get_pool<arg>().template get_component<arg>(entity);
 		get_components(entity, future...);
 	}
 
@@ -206,14 +206,14 @@ public:
 	template<class ComponentType>
 	View<ComponentType> get_components_of_type()
 	{
-		return get_pool<ComponentType>().get_components<ComponentType>();
+		return get_pool<ComponentType>().template get_components<ComponentType>();
 	}
 
 	template<class ComponentType>
 	View<ComponentType> get_components_of_type() const
 	{
 		static_assert(std::is_const<ComponentType>::value == true);
-		return get_pool<ComponentType>().get_components<ComponentType>();
+		return get_pool<ComponentType>().template get_components<ComponentType>();
 	}
 
 };

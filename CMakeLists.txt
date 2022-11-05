@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.2)
+project(Engine2)
+find_package(OpenGL REQUIRED)
+set(CMAKE_CXX_STANDARD 17)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Engine2_SOURCE_DIR})
+if(NOT EXISTS ${Engine2_SOURCE_DIR}/lib/glfw/build)
+    execute_process(
+        COMMAND cmake -S ${Engine2_SOURCE_DIR}/lib/glfw -B ${Engine2_SOURCE_DIR}/lib/glfw/build
+        OUTPUT_VARIABLE GLFW_BUILD
+    )
+    message("BUILT GLFW")
+endif()
+
+file(GLOB SOURCES "src/*.cpp" "src/*.c" "src/*/*.cpp" "src/*/*.c" "ext/*.c" "ext/*.cpp" "ext/*/*.cpp" "ext/*/*.c")
+add_executable(Engine2 ${SOURCES})
+
+target_include_directories(Engine2 PUBLIC ${Engine2_SOURCE_DIR}/include ${Engine2_SOURCE_DIR}/src)
+
+
+target_link_libraries(Engine2 ${Engine2_SOURCE_DIR}/lib/glfw/build/src/libglfw3.a OpenGL::GL m X11 pthread Xrandr dl)
