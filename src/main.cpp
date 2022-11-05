@@ -310,16 +310,16 @@ int main() {
 		DemoMesh(MeshStaticAsset mesh, glm::mat4 model, uint32_t mat_id) : mesh(mesh), model(model), mat_id(mat_id) {}
 	};
 	std::vector<DemoMesh> demo_meshes;
-	for (const auto& file : std::filesystem::directory_iterator("3DModelData/birchTwoMesh")) {
+	for (const auto& file : std::filesystem::directory_iterator("Example/birchTwoMesh")) {
 		std::string filepath_string = file.path().string();
 		constexpr glm::vec4 leafColor = (glm::vec4(250, 187, 148, 255) / 255.f);
-		if (filepath_string == R"(3DModelData/birchTwoMesh/2_Birch_Leaf_Autumn_1.twomesh)")
+		if (filepath_string == R"(Example/birchTwoMesh/2_Birch_Leaf_Autumn_1.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(3DModelData/birchTwoMesh/0_Leaves_Mesh.003.twomesh)")
+		else if (filepath_string == R"(Example/birchTwoMesh/0_Leaves_Mesh.003.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(3DModelData/birchTwoMesh/1_Material.001.twomesh)")
+		else if (filepath_string == R"(Example/birchTwoMesh/1_Material.001.twomesh)")
 			materials.push_back(leafColor);
-		else if (filepath_string == R"(3DModelData/birchTwoMesh/3_Bark_and_Branches_Mesh.005.twomesh)")
+		else if (filepath_string == R"(Example/birchTwoMesh/3_Bark_and_Branches_Mesh.005.twomesh)")
 			materials.push_back(glm::vec4(175, 157, 153, 255)/255.f);
 		else {
 			std::cout << std::endl << filepath_string << std::endl;
