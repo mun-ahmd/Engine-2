@@ -234,6 +234,22 @@ glm::mat4 compute_dir_lightspace(const glm::mat4& proj, const glm::mat4& view, c
 }
 #include <filesystem>
 int main() {
+
+	// int maxBlocks;
+	// glGetIntegerv(GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax vertex uniform blocks: " << maxBlocks;
+	// glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax fragment uniform blocks: " << maxBlocks;
+	// glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax vertex shader storage blocks: " << maxBlocks;
+	// glGetIntegerv(GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax fragment shader storage blocks: " << maxBlocks;
+	// glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax compute uniform blocks: " << maxBlocks;
+	// glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &maxBlocks);
+	// std::cout << "\nMax compute shader storage blocks: " << maxBlocks;
+	// return 0;
+
 	std::cout << std::filesystem::current_path();	
 	GLFWwindow* window = Graphics::InitiateGraphicsLib({ "GL_ARB_bindless_texture" });
 	static int width, height;
@@ -253,7 +269,7 @@ int main() {
 		Pipeline geometry = Pipeline(R"(src/Graphics/newDrawVert.glsl)", R"(src/Graphics/newDrawFrag.glsl)");
 		Pipeline texture_to_depth_attachment = Pipeline(R"(src/Graphics/FullScreenVert.glsl)", R"(src/Graphics/TextureToDepthFrag.glsl)");
 		Pipeline material = Pipeline(R"(src/Graphics/MaterialShaderVert.glsl)", R"(src/Graphics/MaterialShader.glsl)");
-		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/Shaders/shadowVert.glsl)", R"(src/Graphics/Shaders/shadowFrag.glsl)");
+		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/ShadowVert.glsl)", R"(src/Graphics/ShadowFrag.glsl)");
 
 	} pipes;
 	struct {
@@ -412,39 +428,7 @@ int main() {
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	std::function<void()> draw_cycle = [&]() {
-		//double start_time = glfwGetTime();
-		////update view matrix
-		//cam.moveAround(delta_time); cam.lookAround();
-		//glm::mat4 curr_view = cam.getView();
-		//buffs.proj_view.modify(glm::value_ptr(curr_view), sizeof(glm::mat4), sizeof(glm::mat4));
-
-		//g_buffer.bind(GL_FRAMEBUFFER);
-		//g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//pipes.geometry.bind();
-		//MeshStatic::get_static_meshes_holder().multi_draw();
-		//
-		//material_pass_fbo.bind(GL_FRAMEBUFFER);
-
-		//pipes.texture_to_depth_attachment.bind();
-		//glDrawArrays(GL_TRIANGLES, 0, 3);
-
-		//pipes.material.bind();
-		//for (uint32_t i = 0; i < materials.size(); ++i) {
-		//	//update active mat id
-		//	buffs.active_material_id.modify(&i, sizeof(uint32_t), 0);
-
-		//	glDrawArrays(GL_TRIANGLES, 0, 3);
-		//}
-
-		//Framebuffer::blit(material_pass_fbo, default_fbo, GL_COLOR_BUFFER_BIT);
-
-		//glfwSwapBuffers(window);
-		//glfwPollEvents();
-		//delta_time = glfwGetTime() - start_time;
-	};
-
-	Graphics::clear_color(0, 1, 0, 1);
+	Graphics::clear_color(0.3, 0.3, 0.3, 1);
 
 	DebugTextureDrawer tex_drawer;
 	tex_drawer.set_uniform_vec<float, 2>("near_far", &near_far[0]);
@@ -453,10 +437,9 @@ int main() {
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glm::vec3 LIGHTPOS = glm::vec3(0.5, 1, 1) * 10.f;
 	glm::mat4 LIGHTVIEW = glm::lookAt(LIGHTPOS, glm::vec3(0), glm::vec3(0, 1, 0));
-
-
+	pipes.material.set_uniform_vec<3,float>(pipes.material.get_uniform_loc("lightPos"), (float*)&LIGHTPOS);
+	
 	while (!glfwWindowShouldClose(window) && !(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)) {
-		draw_cycle();
 		double start_time = glfwGetTime();
 		//update view matrix
 		cam.moveAround(delta_time); cam.lookAround();

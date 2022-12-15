@@ -9,7 +9,7 @@ uniform vec2 near_far;
 
 void main() {
 	//fragcolor = texture(tex, texcoords);
-	fragcolor = vec4(vec3(LinearizeDepth(texture(tex, texcoords).r, near_far.x , near_far.y)), 1.0);
+	fragcolor = vec4(vec3(texture(tex, texcoords).rgb), 1.0);
 }
 
 // required when using a perspective projection matrix

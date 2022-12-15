@@ -39,7 +39,7 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 	return shadow;
 } 
 
-const vec3 lightPos = vec3(0.5, 1, 1);
+uniform vec3 lightPos;
 
 float LinearizeDepth(float depth, float zNear, float zFar)
 {
@@ -50,19 +50,21 @@ float LinearizeDepth(float depth, float zNear, float zFar)
 void main(){
     vec3 lightdir = normalize(-lightPos);
 	vec3 lightcolor = materials[mat_id -1].rgb;
+	fragcolor = vec4(lightcolor, 1);
+	return;
 	//TODO MAJOR CHECK WHY NORMALS ARE COMING REVERSED FROM CPU SIDE
-	vec3 norm = normalize(-texture(gnorm, texcoords).rgb);
-	vec3 frag_pos = texture(gpos, texcoords).rgb;
-	vec4 lightspace_coords = (lightspace * vec4(frag_pos, 1.0));
-	float shadow = 1.0 - ShadowCalculation(lightspace_coords);
+	// vec3 norm = normalize(-texture(gnorm, texcoords).rgb);
+	// vec3 frag_pos = texture(gpos, texcoords).rgb;
+	// vec4 lightspace_coords = (lightspace * vec4(frag_pos, 1.0));
+	// float shadow = 1.0 - ShadowCalculation(lightspace_coords);
 
-	float diff = (max(dot(lightdir, norm), 0.0)) * shadow + 0.09;
+	// float diff = (max(dot(lightdir, norm), 0.0)) * shadow + 0.09;
 
-	vec3 view_dir = normalize(camera_pos - frag_pos);
-	vec3 reflect_dir = reflect(-lightdir, norm);
-	float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32) * shadow;
+	// vec3 view_dir = normalize(camera_pos - frag_pos);
+	// vec3 reflect_dir = reflect(-lightdir, norm);
+	// float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32) * shadow;
 
-	fragcolor = vec4(lightcolor * (diff+spec), 1);
+	// fragcolor = vec4(lightcolor * (diff+spec), 1);
 
 //	fragcolor = vec4(vec3(10000 * LinearizeDepth(shadow, 0.001, 100.0)), 1);
 //	fragcolor = vec4(vec3(1 * LinearizeDepth(texture(shadow_map, texcoords).r, 0.001, 100.0)), 1);

@@ -1091,6 +1091,10 @@ public:
 	inline void add_pipeline_uniform_block(std::string block_name)
 	{
 		pipeline_uniform_blocks[block_name] = glGetUniformBlockIndex(program, block_name.c_str());
+		if(pipeline_uniform_blocks[block_name] == GL_INVALID_INDEX){
+			std::cout << "\nError: Invalid uniform block name: " << block_name << "\n";
+			pipeline_uniform_blocks.erase(block_name);
+		}
 	}
 
 	inline void add_sampler_uniform(std::string uniform_name)
@@ -1124,6 +1128,10 @@ public:
 	void add_pipeline_ssbo_block(std::string block_name)
 	{
 		pipeline_ssbo_blocks[block_name] = glGetProgramResourceIndex(program, GL_SHADER_STORAGE_BLOCK, block_name.c_str());
+		if(pipeline_ssbo_blocks[block_name] == GL_INVALID_INDEX){
+			std::cout << "\nError: Invalid shader storage block name: " << block_name << "\n";
+			pipeline_ssbo_blocks.erase(block_name);
+		}
 	}
 
 	inline void bind_pipeline_ssbo_block(std::string block_name, unsigned int binding_point)
