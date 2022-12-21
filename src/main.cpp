@@ -266,10 +266,10 @@ int main() {
 	
 	//Graphics resources
 	struct {
-		Pipeline geometry = Pipeline(R"(src/Graphics/newDrawVert.glsl)", R"(src/Graphics/newDrawFrag.glsl)");
-		Pipeline texture_to_depth_attachment = Pipeline(R"(src/Graphics/FullScreenVert.glsl)", R"(src/Graphics/TextureToDepthFrag.glsl)");
-		Pipeline material = Pipeline(R"(src/Graphics/MaterialShaderVert.glsl)", R"(src/Graphics/MaterialShader.glsl)");
-		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/ShadowVert.glsl)", R"(src/Graphics/ShadowFrag.glsl)");
+		Pipeline geometry = Pipeline(R"(src/Graphics/Shaders/newDrawVert.glsl)", R"(src/Graphics/Shaders/newDrawFrag.glsl)");
+		Pipeline texture_to_depth_attachment = Pipeline(R"(src/Graphics/Shaders/FullScreenVert.glsl)", R"(src/Graphics/Shaders/TextureToDepthFrag.glsl)");
+		Pipeline material = Pipeline(R"(src/Graphics/Shaders/MaterialShaderVert.glsl)", R"(src/Graphics/Shaders/MaterialShader.glsl)");
+		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/Shaders/ShadowVert.glsl)", R"(src/Graphics/Shaders/ShadowFrag.glsl)");
 
 	} pipes;
 	struct {
