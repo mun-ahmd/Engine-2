@@ -11,3 +11,4 @@ build/*
 lib/glfw/build/*
 scene.json
 Engine2
+.cache/*
