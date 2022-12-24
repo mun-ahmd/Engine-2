@@ -1,3 +1,6 @@
+#include "glad/glad.h"
+#include <string>
+#include <unordered_map>
 #define MAIN_DEFAULT
 #ifdef MAIN_DEFAULT
 
@@ -13,7 +16,6 @@
 
 #include "Graphics/Graphics_2.h"
 #include "Graphics/HigherGraphics_2.h"
-#include "Graphics/cameraObj.h"
 
 #include "Mesh/Mesh.h"
 #include "Asset/Model.h"
@@ -23,6 +25,7 @@
 #include "Utils/View.h"
 #include "ECS/ECS.hpp"
 
+#include "Graphics/RenderPass.h"
 
 //TODO MAKE A GLSL SHADER PARSER TO AUTOMATICALLY DETECT ALL UNIFORMS IN A SHADER
 //	use glGetProgramInterfaceiv etc
@@ -87,67 +90,6 @@ const float cube_vertices[8 * 36] = {
 	 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
 	-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
 	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
-};
-
-class CamHandler
-{
-private:
-	GLFWwindow* currentWindow;
-	double mouseLastX;
-	double mouseLastY;
-	bool hasMouseMovedOnce;
-	Camera cam;
-public:
-	CamHandler(GLFWwindow* window)
-	{
-		this->cam = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0, 1, 0));
-		currentWindow = window;
-		hasMouseMovedOnce = 0;
-		mouseLastX = 0.0;
-		mouseLastY = 0.0;
-		cam.movementSpeed /= 2;
-	}
-	void moveAround(double deltaTime)
-	{
-		if (glfwGetKey(this->currentWindow, GLFW_KEY_W) == GLFW_PRESS)
-			this->cam.keyboardMovementProcess(FORWARD, deltaTime);
-		if (glfwGetKey(this->currentWindow, GLFW_KEY_S) == GLFW_PRESS)
-			this->cam.keyboardMovementProcess(BACKWARD, deltaTime);
-		if (glfwGetKey(this->currentWindow, GLFW_KEY_A) == GLFW_PRESS)
-			this->cam.keyboardMovementProcess(LEFT, deltaTime);
-		if (glfwGetKey(this->currentWindow, GLFW_KEY_D) == GLFW_PRESS)
-			this->cam.keyboardMovementProcess(RIGHT, deltaTime);
-	}
-	void lookAround()
-	{
-		double xPos, yPos;
-		double lastX = this->mouseLastX; double lastY = this->mouseLastY;
-		glfwGetCursorPos(this->currentWindow, &xPos, &yPos);
-
-		//if first mouse input....
-		//this stops massive offset when starting due to large diff b/w last pos and curr pos of mouse
-		if (this->hasMouseMovedOnce == false) {
-			lastX = xPos;
-			lastY = yPos;
-			this->hasMouseMovedOnce = true;
-		}
-
-		double xOffset = xPos - lastX;
-		double yOffset = yPos - lastY;
-
-		lastX = xPos;
-		lastY = yPos;
-		this->mouseLastX = lastX; this->mouseLastY = lastY;
-
-		this->cam.mouseLookProcess(xOffset, yOffset, true);
-	}
-	glm::mat4 getView()
-	{
-		return this->cam.getViewMatrix();
-	}
-	glm::vec3 get_pos() {
-		return this->cam.position;
-	}
 };
 
 MeshData<Vertex3> get_cube() {
@@ -266,7 +208,7 @@ int main() {
 	
 	//Graphics resources
 	struct {
-		Pipeline geometry = Pipeline(R"(src/Graphics/Shaders/newDrawVert.glsl)", R"(src/Graphics/Shaders/newDrawFrag.glsl)");
+		// Pipeline geometry = Pipeline(R"(src/Graphics/Shaders/newDrawVert.glsl)", R"(src/Graphics/Shaders/newDrawFrag.glsl)");
 		Pipeline texture_to_depth_attachment = Pipeline(R"(src/Graphics/Shaders/FullScreenVert.glsl)", R"(src/Graphics/Shaders/TextureToDepthFrag.glsl)");
 		Pipeline material = Pipeline(R"(src/Graphics/Shaders/MaterialShaderVert.glsl)", R"(src/Graphics/Shaders/MaterialShader.glsl)");
 		Pipeline shadow_mapper = Pipeline(R"(src/Graphics/Shaders/ShadowVert.glsl)", R"(src/Graphics/Shaders/ShadowFrag.glsl)");
@@ -282,27 +224,33 @@ int main() {
 		Buffer active_material_id;
 	} buffs;
 	struct {
-		Texture_2D g_pos = Texture_2D(width, height, GL_RGB32F);
-		Texture_2D g_norm = Texture_2D(width, height, GL_RGB32F);
-		Texture_2D material_depth = Texture_2D(width, height, GL_RGB32F);
+		// Texture_2D g_pos = Texture_2D(width, height, GL_RGB32F);
+		// Texture_2D g_norm = Texture_2D(width, height, GL_RGB32F);
+		// Texture_2D material_depth = Texture_2D(width, height, GL_RGB32F);
 
 		Texture_2D material_pass_out = Texture_2D(width, height, GL_RGBA);
 
 		Texture_2D shadow_map = Texture_2D(width, height, GL_DEPTH_COMPONENT32);
 	} textures;
 	struct {
-		Renderbuffer geometry_pass_depth = Renderbuffer(width, height, GL_DEPTH24_STENCIL8);
+		// Renderbuffer geometry_pass_depth = Renderbuffer(width, height, GL_DEPTH24_STENCIL8);
 
 		Renderbuffer material_pass_depth = Renderbuffer(width, height, GL_DEPTH_COMPONENT32F);
 	} renderbuffs;
 
 	//Framebuffers
-	Framebuffer g_buffer(width, height,
-		{ FBOattach(textures.g_pos, true),
-			FBOattach(textures.g_norm, true),
-			FBOattach(textures.material_depth, true) },
-		FBOattach(renderbuffs.geometry_pass_depth, false), DepthStencilAttachType::BOTH_DEPTH_STENCIL
-	);
+	// Framebuffer g_buffer(width, height,
+	// 	{ FBOattach(textures.g_pos, true),
+	// 		FBOattach(textures.g_norm, true),
+	// 		FBOattach(textures.material_depth, true) },
+	// 	FBOattach(renderbuffs.geometry_pass_depth, false), DepthStencilAttachType::BOTH_DEPTH_STENCIL
+	// );
+	ECSmanager ecs;
+	ecs.register_component<Buffer>();
+	ecs.register_component<Pipeline>();
+	ecs.register_component<Framebuffer>();
+	ecs.register_component<Texture_2D>();
+	std::unordered_map<std::string, Entity> renderer_entities;
 
 	Framebuffer material_pass_fbo(width, height,
 		{ FBOattach(textures.material_pass_out, true) },
@@ -316,7 +264,6 @@ int main() {
 	//THIS DEMO WILL HAVE 2 CUBES OF DIFFERENT COLORS
 	float near_far[2] = { 0.001f, 100.0f };
 	glm::mat4 projection_mat = glm::perspective(45.f, (float)width / height, near_far[0], near_far[1]);
-
 	//constexpr int num_demo_meshes = 2;
 	std::vector<glm::vec4> materials = { glm::vec4(0.0,1.0,1.0,1.0), glm::vec4(1.0,0.0,0.0,1.0) };
 	struct DemoMesh {
@@ -348,9 +295,9 @@ int main() {
 	//FURTHER INITIALIZATIONS
 
 		//making Textures resident
-	textures.material_depth.make_handle_resident();
-	textures.g_pos.make_handle_resident();
-	textures.g_norm.make_handle_resident();
+	// textures.material_depth.make_handle_resident();
+	// textures.g_pos.make_handle_resident();
+	// textures.g_norm.make_handle_resident();
 	textures.shadow_map.make_handle_resident();
 
 	//Buffers initialization
@@ -364,8 +311,16 @@ int main() {
 	buffs.materials = Buffer(sizeof(glm::vec4) * materials.size(), NULL);
 	buffs.materials.modify(materials.data(), sizeof(glm::vec4) * materials.size(), 0);
 
+	Buffer indirect_draw_buffer = MeshStatic::get_static_meshes_holder().get_indirect_draw_buffer();
+    renderer_entities["indirect_draw_buf"] = ecs.new_entity(indirect_draw_buffer);
+    renderer_entities["proj_view_buf"] = ecs.new_entity(buffs.proj_view);
+    renderer_entities["models_buf"] = ecs.new_entity(buffs.models);
+    renderer_entities["material_ids_buf"] = ecs.new_entity(buffs.material_ids);
+	GeometryPass geometry_pass(width, height);
+	geometry_pass.init(ecs, renderer_entities);
+
 	buffs.g_buffer_handles = Buffer(sizeof(uint64_t) * 2, NULL);
-	std::array<uint64_t, 2> gbuff_handles = { textures.g_pos.get_handle(), textures.g_norm.get_handle() };
+	std::array<uint64_t, 2> gbuff_handles = { ecs.get_component<Texture_2D>(renderer_entities["g_pos_tex"])->get_handle(), ecs.get_component<Texture_2D>(renderer_entities["g_norm_tex"])->get_handle() };
 	buffs.g_buffer_handles.modify(gbuff_handles.data(), sizeof(uint64_t) * 2, 0);
 
 	buffs.active_material_id = Buffer(sizeof(uint32_t), NULL);
@@ -381,12 +336,12 @@ int main() {
 	pipes.material.change_depth_func(GL_EQUAL);
 
 	//uniforms & ssbos
-	pipes.geometry.add_pipeline_uniform_block("Matrices");
-	pipes.geometry.bind_pipeline_uniform_block("Matrices", 1);
-	pipes.geometry.add_pipeline_ssbo_block("Transformations");
-	pipes.geometry.bind_pipeline_ssbo_block("Transformations", 2);
-	pipes.geometry.add_pipeline_ssbo_block("MaterialIds");
-	pipes.geometry.bind_pipeline_ssbo_block("MaterialIds", 3);
+	// pipes.geometry.add_pipeline_uniform_block("Matrices");
+	// pipes.geometry.bind_pipeline_uniform_block("Matrices", 1);
+	// pipes.geometry.add_pipeline_ssbo_block("Transformations");
+	// pipes.geometry.bind_pipeline_ssbo_block("Transformations", 2);
+	// pipes.geometry.add_pipeline_ssbo_block("MaterialIds");
+	// pipes.geometry.bind_pipeline_ssbo_block("MaterialIds", 3);
 
 	pipes.shadow_mapper.add_pipeline_uniform_block("Matrices");
 	pipes.shadow_mapper.bind_pipeline_uniform_block("Matrices", 1);
@@ -395,7 +350,7 @@ int main() {
 
 	pipes.texture_to_depth_attachment.set_uniform<uint64_t>(
 		pipes.texture_to_depth_attachment.get_uniform_loc("depth_texture"),
-		textures.material_depth.get_handle()
+		ecs.get_component<Texture_2D>(renderer_entities["material_depth_tex"])->get_handle()
 		);
 
 	pipes.material.add_pipeline_uniform_block("MaterialID");
@@ -408,12 +363,13 @@ int main() {
 
 
 	//binding buffers to shader blocks
+	auto geometry = ecs.get_component<Pipeline>(renderer_entities["geometry_pipe"]);
 	buffs.proj_view.bind_base(GL_UNIFORM_BUFFER,
-		pipes.geometry.get_pipeline_uniform_block_binding("Matrices"));
+		geometry->get_pipeline_uniform_block_binding("Matrices"));
 	buffs.models.bind_base(GL_SHADER_STORAGE_BUFFER,
-		pipes.geometry.get_pipeline_ssbo_block_binding("Transformations"));
+		geometry->get_pipeline_ssbo_block_binding("Transformations"));
 	buffs.material_ids.bind_base(GL_SHADER_STORAGE_BUFFER,
-		pipes.geometry.get_pipeline_ssbo_block_binding("MaterialIds"));
+		geometry->get_pipeline_ssbo_block_binding("MaterialIds"));
 
 	buffs.materials.bind_base(GL_SHADER_STORAGE_BUFFER,
 		pipes.material.get_pipeline_ssbo_block_binding("Materials"));
@@ -422,7 +378,6 @@ int main() {
 	buffs.g_buffer_handles.bind_base(GL_UNIFORM_BUFFER,
 		pipes.material.get_pipeline_uniform_block_binding("gbuffer"));
 
-	auto indirect_db = MeshStatic::get_static_meshes_holder().get_indirect_draw_buffer();
 
 	double delta_time = 0.0;
 
@@ -454,16 +409,18 @@ int main() {
 		buffs.proj_view.modify(glm::value_ptr(LIGHTVIEW), sizeof(glm::mat4), sizeof(glm::mat4));
 		glm::mat4 lightspacetrans = compute_dir_lightspace(projection_mat, curr_view, LIGHTPOS);
 		pipes.shadow_mapper.set_uniform_mat<4, 4>(pipes.shadow_mapper.get_uniform_loc("lightspace"), glm::value_ptr(lightspacetrans));
+		ecs.get_component<Buffer>(renderer_entities["indirect_draw_buf"])->bind(GL_DRAW_INDIRECT_BUFFER);
 		MeshStatic::get_static_meshes_holder().multi_draw();
 
 		buffs.proj_view.modify(glm::value_ptr(curr_view), sizeof(glm::mat4), sizeof(glm::mat4));
 
-		g_buffer.bind(GL_FRAMEBUFFER);
-		g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		pipes.geometry.bind();
+		// g_buffer.bind(GL_FRAMEBUFFER);
+		// g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// pipes.geometry.bind();
 
-		indirect_db.bind(GL_DRAW_INDIRECT_BUFFER);
-		MeshStatic::get_static_meshes_holder().multi_draw();
+		// indirect_db.bind(GL_DRAW_INDIRECT_BUFFER);
+		// MeshStatic::get_static_meshes_holder().multi_draw();
+		geometry_pass.execute(ecs, renderer_entities);
 
 		material_pass_fbo.bind(GL_FRAMEBUFFER);
 		material_pass_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

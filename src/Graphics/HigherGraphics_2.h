@@ -5,6 +5,79 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "Mesh/Mesh.h"
 #include <limits>
+#include <ECS/ECS.hpp>
+#include <string>
+#include <unordered_map>
+#include "Graphics/cameraObj.h"
+
+class RenderPass {
+public:
+  //init should be called before the first frame, once throughout execution
+  virtual void init(ECSmanager &ecs, std::unordered_map<std::string, Entity>& renderer_entities) = 0;
+  //execute should perform per-frame actions
+  virtual void execute(ECSmanager &ecs, std::unordered_map<std::string, Entity>& renderer_entities) = 0;
+};
+
+class CamHandler
+{
+private:
+	GLFWwindow* currentWindow;
+	double mouseLastX;
+	double mouseLastY;
+	bool hasMouseMovedOnce;
+	Camera cam;
+public:
+	CamHandler(GLFWwindow* window)
+	{
+		this->cam = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0, 1, 0));
+		currentWindow = window;
+		hasMouseMovedOnce = 0;
+		mouseLastX = 0.0;
+		mouseLastY = 0.0;
+		cam.movementSpeed /= 2;
+	}
+	void moveAround(double deltaTime)
+	{
+		if (glfwGetKey(this->currentWindow, GLFW_KEY_W) == GLFW_PRESS)
+			this->cam.keyboardMovementProcess(FORWARD, deltaTime);
+		if (glfwGetKey(this->currentWindow, GLFW_KEY_S) == GLFW_PRESS)
+			this->cam.keyboardMovementProcess(BACKWARD, deltaTime);
+		if (glfwGetKey(this->currentWindow, GLFW_KEY_A) == GLFW_PRESS)
+			this->cam.keyboardMovementProcess(LEFT, deltaTime);
+		if (glfwGetKey(this->currentWindow, GLFW_KEY_D) == GLFW_PRESS)
+			this->cam.keyboardMovementProcess(RIGHT, deltaTime);
+	}
+	void lookAround()
+	{
+		double xPos, yPos;
+		double lastX = this->mouseLastX; double lastY = this->mouseLastY;
+		glfwGetCursorPos(this->currentWindow, &xPos, &yPos);
+
+		//if first mouse input....
+		//this stops massive offset when starting due to large diff b/w last pos and curr pos of mouse
+		if (this->hasMouseMovedOnce == false) {
+			lastX = xPos;
+			lastY = yPos;
+			this->hasMouseMovedOnce = true;
+		}
+
+		double xOffset = xPos - lastX;
+		double yOffset = yPos - lastY;
+
+		lastX = xPos;
+		lastY = yPos;
+		this->mouseLastX = lastX; this->mouseLastY = lastY;
+
+		this->cam.mouseLookProcess(xOffset, yOffset, true);
+	}
+	glm::mat4 getView()
+	{
+		return this->cam.getViewMatrix();
+	}
+	glm::vec3 get_pos() {
+		return this->cam.position;
+	}
+};
 
 namespace ComputeShaderDataStructures
 {
