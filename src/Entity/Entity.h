@@ -14,6 +14,10 @@ private:
 	//version to take 4 bits, id to take rest
 	uint32_t id_version;
 public:
+	Entity(){
+		//set as invalid id with invalid version
+		id_version = ENTITY_INVALID;
+	}
 	Entity(uint32_t id)
 	{
 		if (id > ENTITY_INVALID_ID)
