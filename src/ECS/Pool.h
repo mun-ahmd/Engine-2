@@ -4,7 +4,14 @@
 #include "Utils/SparseArray.h"
 #include "Utils/View.h"
 #include "Entity/Entity.h"
+#include <vector>
+#include <type_traits>
 
+template<typename T>
+class PoolVector{
+	public:
+	inline static std::vector<typename std::remove_const<T>::type> components;
+};
 
 class Pool
 {
@@ -16,7 +23,8 @@ private:
 	//todo test
 	SparseArray<uint32_t> _indices;
 	std::vector<Entity> _entities;
-	ByteBuffer _components = ByteBuffer(0);	//todo you might wanna replace vector of vectors with vector of a struct whose size cannot be changed after initialization
+	// ByteBuffer PoolVector<T>::components = ByteBuffer(0);
+	size_t component_size;
 
 	bool entity_in_pool(Entity entity)
 	{
@@ -35,25 +43,26 @@ public:
 	template <class T>
 	void init()
 	{
-		_components = ByteBuffer(sizeof(T));
+		static_assert(std::is_const<T>::value == false);
+		component_size = sizeof(T);
 	}
 
 	template <class T>
 	void add_component(Entity entity, T obj)
 	{
-		assert(sizeof(T) == _components.data_type_size());	//does not make it completely safe as diff structs can have same size, 
+		assert(sizeof(T) == component_size);	//does not make it completely safe as diff structs can have same size, 
 												//but those checks will be ensured by ECSmanager anyway, so this can be removed
-		assert(_components.data_type_size() != 0);
+		assert(component_size != 0);
 		if (entity_in_pool(entity))
 		{
 			uint32_t index = entity_index(entity);
-			_components.set<T>(index, obj);
+			PoolVector<T>::components[index] = obj;
 		}
 		else
 		{
 			_indices.set(entity.get_id(), _entities.size());
 			_entities.push_back(entity);
-			_components.push<T>(obj);
+			PoolVector<T>::components.push_back(obj);
 		}
 	}
 
@@ -75,22 +84,21 @@ public:
 	}
 
 	template <class ComponentType>
-	View<ComponentType> get_components()
+	View<typename std::remove_const<ComponentType>::type> get_components()
 	{
-		return View<ComponentType>((ComponentType*)_components[0], _components.size());
+		return View<typename std::remove_const<ComponentType>::type>(PoolVector<ComponentType>::components.data(), PoolVector<ComponentType>::components.size());
 	}
 
 	template <class ComponentType>
-	View<ComponentType> get_components() const
+	View<const typename std::remove_const<ComponentType>::type> get_components() const
 	{
-		static_assert(std::is_const<ComponentType>::value == true);
-		return View<ComponentType>((ComponentType*)_components[0], _components.size());
+		return View<const typename std::remove_const<ComponentType>::type>((const typename std::remove_const<ComponentType>::type*)PoolVector<ComponentType>::components.data(), PoolVector<ComponentType>::components.size());
 	}
 
 	template <class ComponentType>
-	ComponentType* get_component(Entity entity)
+	typename std::remove_const<ComponentType>::type* get_component(Entity entity)
 	{
-		return (ComponentType*)_components[entity_index(entity)];
+		return &PoolVector<ComponentType>::components[entity_index(entity)];
 	}
 
 };

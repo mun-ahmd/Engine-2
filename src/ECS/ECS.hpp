@@ -141,6 +141,11 @@ public:
 
 	void get_components(Entity entity) {}
 
+	template<class arg>
+	arg* get_component(Entity entity){
+		return (get_pool<arg>().template get_component<arg>(entity));
+	}
+
 	template<class arg, class... args>
 	void get_components(Entity entity, arg* curr, args*... future)
 	{
