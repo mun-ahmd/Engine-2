@@ -1,7 +1,9 @@
 #version 450 core
 #extension GL_ARB_bindless_texture : enable
 
-layout(bindless_sampler) uniform sampler2D shadow_map;
+layout(bindless_sampler) uniform;
+
+uniform sampler2D shadow_map;
 
 in VS_OUT
 {

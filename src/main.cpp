@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
-#include <filesystem>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -123,6 +122,7 @@ int main() {
   glfwGetWindowSize(window, &width, &height);
 
   glEnable(GL_DEPTH_TEST);
+  glViewport(0, 0, width, height);
   glDepthFunc(GL_LESS);
 
   CamHandler cam(window);
@@ -134,8 +134,8 @@ int main() {
   // Graphics resources
   struct {
     Pipeline shadow_mapper =
-        Pipeline(R"(src/Graphics/Shaders/ShadowVert.glsl)",
-                 R"(src/Graphics/Shaders/ShadowFrag.glsl)");
+        Pipeline(R"(src/Graphics/Shaders/Shadow.vert)",
+                 R"(src/Graphics/Shaders/Shadow.frag)");
 
   } pipes;
   struct {
@@ -254,13 +254,15 @@ int main() {
   Entity lightspacetrans_entity = ecs.new_entity(glm::mat4(1));
   Entity materials_vec_entity = ecs.new_entity(materials);
 
-  MaterialPass material_pass(width, height, materials_buf, shadow_map_tex,
-                             active_material_id_buf, g_buffer_handles_buf,
-                             lightspacetrans_entity, materials_vec_entity);
+  MaterialPass material_pass(width, height, materials_buf,
+                             active_material_id_buf, materials_vec_entity);
   material_pass.init(ecs);
   TextureToDepthPass texture_to_depth_pass(geometry_pass.material_depth_tex,
                                            material_pass.material_pass_fbo);
   texture_to_depth_pass.init(ecs);
+
+  LightingPass lighting_pass(geometry_pass.g_pos_tex, geometry_pass.g_norm_tex, material_pass.material_pass_out_tex, width, height);
+  lighting_pass.init(ecs);
 
   for (int i = 0; i < demo_meshes.size(); ++i) {
     ecs.get_component<Buffer>(models_buf)
@@ -341,10 +343,12 @@ int main() {
 
     material_pass.execute(ecs);
 
+    lighting_pass.execute(ecs);
+
     default_fbo.bind(GL_FRAMEBUFFER);
     default_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     tex_drawer(
-        *ecs.get_component<Texture_2D>(material_pass.material_pass_out_tex));
+        *ecs.get_component<Texture_2D>(lighting_pass.lighting_pass_out_tex));
 
     glfwSwapBuffers(window);
     glfwPollEvents();

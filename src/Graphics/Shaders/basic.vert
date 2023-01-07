@@ -23,4 +23,4 @@ void main(){
     vs_out.frag_pos = (model * vec4(aPos,1)).xyz;
     gl_Position = projection * view * vec4(vs_out.frag_pos, 1);
     vs_out.shadow_view_pos = (shadow_lightspace * vec4(vs_out.frag_pos, 1));
-};
+}
