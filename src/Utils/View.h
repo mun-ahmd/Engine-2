@@ -201,7 +201,7 @@ public:
 			action(array_ptr[i]);
 		}
 	}
-	inline void get_array_ptr() { return array_ptr; }
+	inline Type* get_array_ptr() { return array_ptr; }
 };
 
 

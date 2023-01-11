@@ -1548,8 +1548,8 @@ public:
 	}
 };
 
-static const std::string debug_cube_vertex_shader_file = "src/Graphics/Shaders/DebugCubeVertex.glsl";
-static const std::string debug_cube_fragment_shader_file = "src/Graphics/Shaders/DebugCubeFragment.glsl";
+static const std::string debug_cube_vertex_shader_file = "src/Graphics/Shaders/DebugCube.vert";
+static const std::string debug_cube_fragment_shader_file = "src/Graphics/Shaders/DebugCube.frag";
 
 class DebugCube {
 private:
@@ -1642,8 +1642,8 @@ public:
 };
 
 
-static const std::string fullscreen_vert_file = "src/Graphics/Shaders/FullScreenVert.glsl";
-static const std::string debug_tex_draw_frag_file = "src/Graphics/Shaders/DebugTexDrawFrag.glsl";
+static const std::string fullscreen_vert_file = "src/Graphics/Shaders/FullScreen.vert";
+static const std::string debug_tex_draw_frag_file = "src/Graphics/Shaders/DebugTexDraw.frag";
 
 class DebugTextureDrawer {
 private:

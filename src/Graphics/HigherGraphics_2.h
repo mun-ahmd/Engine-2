@@ -13,9 +13,9 @@
 class RenderPass {
 public:
   //init should be called before the first frame, once throughout execution
-  virtual void init(ECSmanager &ecs, std::unordered_map<std::string, Entity>& renderer_entities) = 0;
+  virtual void init(ECSmanager &ecs) = 0;
   //execute should perform per-frame actions
-  virtual void execute(ECSmanager &ecs, std::unordered_map<std::string, Entity>& renderer_entities) = 0;
+  virtual void execute(ECSmanager &ecs) = 0;
 };
 
 class CamHandler
@@ -269,7 +269,7 @@ private:
 	unsigned int num_meshes = 0;
 	unsigned int num_clusters = 0;
 
-	ComputeShader culling_compute = ComputeShader("src/Graphics/CullClustersCompute.glsl");
+	ComputeShader culling_compute = ComputeShader("src/Graphics/Shaders/CullClusters.compute");
 
 	inline size_t add_mesh_store_info(size_t vertices_data_size, size_t indices_data_size) {
 		MeshStoreOffsetInfo info;
@@ -734,3 +734,79 @@ class HigherGraphics
 {
 public:
 };
+
+const float cube_vertices[8 * 36] = {
+    // positions          // normals           // texture coords
+    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.5f,  -0.5f,
+    -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,  0.5f,  0.5f,  -0.5f, 0.0f,
+    0.0f,  -1.0f, 1.0f,  1.0f,  0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
+    1.0f,  1.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,
+    -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,
+
+    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  0.5f,  -0.5f,
+    0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+    0.0f,  1.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    1.0f,  1.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,
+    -0.5f, -1.0f, 0.0f,  0.0f,  1.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f,
+    0.0f,  0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
+    0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,
+    -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+
+    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,
+    -0.5f, 1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,
+    0.0f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
+    0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+    0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.5f,  -0.5f,
+    -0.5f, 0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  0.0f,
+    -1.0f, 0.0f,  1.0f,  0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
+    1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,
+
+    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.5f,  0.5f,
+    -0.5f, 0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+    1.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+    -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f};
+
+inline MeshData<Vertex3> get_cube() {
+  MeshData<Vertex3> mesh_data;
+  mesh_data.vertices.reserve(36);
+  mesh_data.indices.reserve(36);
+  Vertex3 curr;
+  for (unsigned int i = 0; i < 36; ++i) {
+    curr.pos = glm::vec3(cube_vertices[i * 8], cube_vertices[i * 8 + 1],
+                         cube_vertices[i * 8 + 2]);
+    curr.norm =
+        glm::vec3(cube_vertices[3 + i * 8], cube_vertices[3 + i * 8 + 1],
+                  cube_vertices[3 + i * 8 + 2]);
+    curr.uv = glm::vec2(cube_vertices[6 + i * 8], cube_vertices[6 + i * 8 + 1]);
+    mesh_data.vertices.push_back(curr);
+    mesh_data.indices.push_back(i);
+  }
+  return mesh_data;
+}
+
+// TODO MAKE A GLSL SHADER PARSER TO AUTOMATICALLY DETECT ALL UNIFORMS IN A
+// SHADER 	use glGetProgramInterfaceiv etc
+
+/*
+ * checklist:
+ *	1. a)make texture constructors work better
+ *	1. b)	make texture parameters changeable
+ *	2.)	make framebuffer depth attachment less easy to fail with
+ *	3.)	make fragment shader changeable for debug texture draw
+ *	4.) make compute shader have all features of normal pipelines
+ *	5.) seperate graphics and context creation
+ *	6.) if you want to, make a shadow demo
+ */
+
+/*
+ * checklist 2:
+ *	1.) make all mesh types store the data on the cpu using the same class
+ *	2.) make buffers take data using templates not void* pointers
+ */
