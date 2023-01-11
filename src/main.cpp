@@ -1,6 +1,6 @@
 #include "glad/glad.h"
-#include "glm/fwd.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/fwd.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -135,9 +135,8 @@ int main() {
 
   // Graphics resources
   struct {
-    Pipeline shadow_mapper =
-        Pipeline(R"(src/Graphics/Shaders/Shadow.vert)",
-                 R"(src/Graphics/Shaders/Shadow.frag)");
+    Pipeline shadow_mapper = Pipeline(R"(src/Graphics/Shaders/Shadow.vert)",
+                                      R"(src/Graphics/Shaders/Shadow.frag)");
 
   } pipes;
   struct {
@@ -181,30 +180,14 @@ int main() {
         : mesh(mesh), model(model), mat_id(mat_id) {}
   };
   std::vector<DemoMesh> demo_meshes;
-  for (const auto &file :
-       std::filesystem::directory_iterator("Example/birchTwoMesh")) {
-    std::string filepath_string = file.path().string();
-    constexpr glm::vec4 leafColor = (glm::vec4(250, 187, 148, 255) / 255.f);
-    if (filepath_string ==
-        R"(Example/birchTwoMesh/2_Birch_Leaf_Autumn_1.twomesh)")
-      materials.push_back(leafColor);
-    else if (filepath_string ==
-             R"(Example/birchTwoMesh/0_Leaves_Mesh.003.twomesh)")
-      materials.push_back(leafColor);
-    else if (filepath_string ==
-             R"(Example/birchTwoMesh/1_Material.001.twomesh)")
-      materials.push_back(leafColor);
-    else if (filepath_string ==
-             R"(Example/birchTwoMesh/3_Bark_and_Branches_Mesh.005.twomesh)")
-      materials.push_back(glm::vec4(175, 157, 153, 255) / 255.f);
-    else {
-      std::cout << std::endl << filepath_string << std::endl;
-      materials.push_back(glm::vec4(255, 255, 255, 255) / 255.f);
-    }
-    demo_meshes.push_back(DemoMesh(MeshStaticAsset(filepath_string.c_str()),
-                                   glm::mat4(1), materials.size() - 1));
-    demo_meshes.back().mesh.get_asset();
-  }
+  materials.push_back(glm::vec4(1.0, 0.0, 1.0, 1.0));
+  auto spheress = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
+  demo_meshes.push_back(
+      DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(
+                   MeshStatic(spheress->meshes.front().first))),
+               glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)),
+               materials.size() - 1));
+  demo_meshes.back().mesh.get_asset();
 
   // FURTHER INITIALIZATIONS
 
@@ -263,7 +246,9 @@ int main() {
                                            material_pass.material_pass_fbo);
   texture_to_depth_pass.init(ecs);
 
-  LightingPass lighting_pass(geometry_pass.g_pos_tex, geometry_pass.g_norm_tex, material_pass.material_pass_out_tex, width, height);
+  LightingPass lighting_pass(geometry_pass.g_pos_tex, geometry_pass.g_norm_tex,
+                             material_pass.material_pass_out_tex, width,
+                             height);
   lighting_pass.init(ecs);
 
   for (int i = 0; i < demo_meshes.size(); ++i) {
