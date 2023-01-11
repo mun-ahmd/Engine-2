@@ -1,4 +1,6 @@
 #include "glad/glad.h"
+#include "glm/ext/matrix_transform.hpp"
+#include <memory>
 #include <string>
 #include <unordered_map>
 #define MAIN_DEFAULT
@@ -291,7 +293,10 @@ int main() {
 		demo_meshes.push_back(DemoMesh(MeshStaticAsset(filepath_string.c_str()), glm::mat4(1), materials.size() - 1));
 		demo_meshes.back().mesh.get_asset();
 	}
-
+    materials.push_back(glm::vec4(1.0, 0.0, 1.0, 1.0));
+    auto spheress = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
+    demo_meshes.push_back(DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(MeshStatic(spheress->meshes.front().first))), glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)), materials.size() - 1));
+    demo_meshes.back().mesh.get_asset();    
 	//FURTHER INITIALIZATIONS
 
 		//making Textures resident

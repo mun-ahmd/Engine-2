@@ -186,3 +186,21 @@ public:
 
 	inline uint32_t get_static_mesh_id() { return this->static_mesh_id; }
 };
+
+struct MaterialPBR {
+  std::string metallicRoughnessTex = "";
+  float metallic_factor = 1.0;
+  float roughness_factor = 1.0;
+  std::string baseColorTex = "";
+  glm::vec4 baseColorFactor = glm::vec4(1.0);
+  std::string normalMap = "";
+  float normalScale = 1.0;
+};
+
+struct ModelData{
+  std::vector<std::pair<MeshData<Vertex3>, int>> meshes;
+  std::vector<MaterialPBR> materials;
+};
+
+
+std::optional<ModelData> loadGLTF(const char *filepath);
