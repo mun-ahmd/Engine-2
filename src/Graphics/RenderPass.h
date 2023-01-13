@@ -3,6 +3,7 @@
 #include "GLFW/glfw3.h"
 #include "HigherGraphics_2.h"
 #include "Lights.h"
+#include "Mesh/Mesh.h"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/fwd.hpp"
 #include <algorithm>
@@ -135,6 +136,7 @@ public:
   Entity material_pipe;
   Entity material_pass_fbo;
   Entity material_pass_out_tex;
+  Entity current_material_info_buffer;
 
   MaterialPass(int width, int height, Entity materials_buf,
                Entity active_material_id_buf, Entity materials_vec)
@@ -149,12 +151,12 @@ public:
 
     material.add_pipeline_uniform_block("MaterialID");
     material.bind_pipeline_uniform_block("MaterialID", 2);
-    material.add_pipeline_ssbo_block("Materials");
-    material.bind_pipeline_ssbo_block("Materials", 4);
+    material.add_pipeline_uniform_block("Materials");
+    material.bind_pipeline_uniform_block("Materials", 4);
 
-    ecs.get_component<Buffer>(materials_buf)
-        ->bind_base(GL_SHADER_STORAGE_BUFFER,
-                    material.get_pipeline_ssbo_block_binding("Materials"));
+    // ecs.get_component<Buffer>(materials_buf)
+    //     ->bind_base(GL_SHADER_STORAGE_BUFFER,
+    //                 material.get_pipeline_ssbo_block_binding("Materials"));
     ecs.get_component<Buffer>(active_material_id_buf)
         ->bind_base(GL_UNIFORM_BUFFER,
                     material.get_pipeline_uniform_block_binding("MaterialID"));
@@ -169,19 +171,28 @@ public:
         Framebuffer(width, height, {FBOattach(material_pass_out, true)},
                     FBOattach(material_pass_depth, false),
                     DepthStencilAttachType::ONLY_DEPTH));
+
+    Buffer current_material_info(sizeof(LoadedMaterialPBR::BufferDataPBR),
+                                 NULL);
+    current_material_info.bind_base(
+        GL_UNIFORM_BUFFER,
+        material.get_pipeline_uniform_block_binding("Materials"));
+    current_material_info_buffer = ecs.new_entity(current_material_info);
   }
 
   void execute(ECSmanager &ecs) override {
+    auto current_material_info = ecs.get_component<Buffer>(current_material_info_buffer);
+    auto materials_vector = ecs.get_component<std::vector<LoadedMaterialPBR>>(materials_vec); 
     auto material = ecs.get_component<Pipeline>(material_pipe);
     material->bind();
     ecs.get_component<Framebuffer>(material_pass_fbo)->bind(GL_FRAMEBUFFER);
-    std::vector<glm::vec4> materials =
-        *ecs.get_component<std::vector<glm::vec4>>(materials_vec);
-    for (uint32_t i = 0; i < materials.size(); ++i) {
+    for (uint32_t i = 0; i < materials_vector->size(); ++i) {
       // update active mat id
       uint32_t material_id = i + 1;
       ecs.get_component<Buffer>(active_material_id_buf)
           ->modify(&material_id, sizeof(uint32_t), 0);
+      auto data = materials_vector->at(i).getBufferData();
+      current_material_info->modify(&data, sizeof(data), 0);
       glDrawArrays(GL_TRIANGLES, 0, 3);
     }
   }
@@ -214,7 +225,7 @@ public:
     for (int x = -3; x < 3; x++) {
       for (int y = -2; y < 2; y++) {
         ecs.new_entity(
-            PointLight(glm::vec3(3.0*x, 4.0, 2.0*y), 5.0,
+            PointLight(glm::vec3(3.0 * x, 4.0, 2.0 * y), 5.0,
                        glm::vec3(sin(glfwGetTime() * x), cos(glfwGetTime() * y),
                                  sin(glfwGetTime()) > cos(glfwGetTime())
                                      ? sin(glfwGetTime())
@@ -223,7 +234,7 @@ public:
       }
     }
     // ecs.new_entity(
-        // PointLight(glm::vec3(0.5, 4.0, 0.4), 5.0, glm::vec3(1.0), 1.0));
+    // PointLight(glm::vec3(0.5, 4.0, 0.4), 5.0, glm::vec3(1.0), 1.0));
     auto pointLights = ecs.get_components_of_type<PointLight>();
 
     int num_max_point_lights = 128;

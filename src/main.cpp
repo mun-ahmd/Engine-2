@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <vector>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -169,9 +170,12 @@ int main() {
   glm::mat4 projection_mat =
       glm::perspective(45.f, (float)width / height, near_far[0], near_far[1]);
   // constexpr int num_demo_meshes = 2;
-  std::vector<glm::vec4> materials = {glm::vec4(0.0, 1.0, 1.0, 1.0),
-                                      glm::vec4(1.0, 0.0, 0.0, 1.0)};
-
+  auto sphere_model = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
+  std::vector<LoadedMaterialPBR> materials;
+  for (MaterialPBR mat : sphere_model->materials) {
+    materials.push_back(LoadedMaterialPBR(mat));
+    materials.back().activate();
+  }
   struct DemoMesh {
     MeshStaticAsset mesh;
     glm::mat4 model;
@@ -180,14 +184,26 @@ int main() {
         : mesh(mesh), model(model), mat_id(mat_id) {}
   };
   std::vector<DemoMesh> demo_meshes;
-  materials.push_back(glm::vec4(1.0, 0.0, 1.0, 1.0));
-  auto spheress = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
+  // ecs.register_component<MaterialPBR>();
+  // ecs.register_component<LoadedMaterialPBR>();
+  // for (MaterialPBR material : sphere_model->materials) {
+  //   ecs.new_entity(material);
+  // }
+  // for (auto& mesh_mat : sphere_model->meshes){
+  //   ecs.new_entity(MeshStatic(mesh_mat.first));
+  // }
   demo_meshes.push_back(
       DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(
-                   MeshStatic(spheress->meshes.front().first))),
+                   MeshStatic(sphere_model->meshes.front().first))),
                glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)),
-               materials.size() - 1));
-  demo_meshes.back().mesh.get_asset();
+               sphere_model->meshes.front().second));
+
+  // demo_meshes.push_back(
+  //     DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(
+  //                  MeshStatic(sphere_model->meshes.front().first))),
+  //              glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)),
+  //              materials.size() - 1));
+  // demo_meshes.back().mesh.get_asset();
 
   // FURTHER INITIALIZATIONS
 
@@ -236,6 +252,8 @@ int main() {
 
   ecs.register_component<glm::mat4>();
   ecs.register_component<std::vector<glm::vec4>>();
+  ecs.register_component<std::vector<LoadedMaterialPBR>>();
+
   Entity lightspacetrans_entity = ecs.new_entity(glm::mat4(1));
   Entity materials_vec_entity = ecs.new_entity(materials);
 
