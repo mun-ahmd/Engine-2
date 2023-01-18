@@ -1,22 +1,30 @@
 #pragma once
 #include "Graphics_2.h"
+#include <type_traits>
 #include <vector>
 #include <list>
+#include "entt/entt.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "Mesh/Mesh.h"
 #include <limits>
-#include <ECS/ECS.hpp>
+#include "entt/entt.hpp"
 #include <string>
 #include <unordered_map>
 #include "Graphics/cameraObj.h"
 
+
+static_assert(std::is_same<uint32_t, entt::id_type>::value);
+typedef entt::entity MaterialEntity;
+
 class RenderPass {
 public:
   //init should be called before the first frame, once throughout execution
-  virtual void init(ECSmanager &ecs) = 0;
+  virtual void init(entt::registry &registry) = 0;
   //execute should perform per-frame actions
-  virtual void execute(ECSmanager &ecs) = 0;
+  virtual void execute(entt::registry &registry) = 0;
 };
+
+typedef glm::vec3 Position;
 
 class CamHandler
 {
@@ -421,7 +429,7 @@ public:
 			unsigned int  instanceCount;	// setting it to 1 for now..
 			unsigned int  firstIndex;		// number of indices before the first one of this cluster regardless of which mesh it belongs to
 			unsigned int  baseVertex;		// number of vertices before the first one of cluster's mesh
-			unsigned int  baseInstance;		// set it to cluster index for now..
+			unsigned int  baseInstance;		// set it to mesh index for now..
 		};
 
 		std::vector<indirect_draw_struct> buff_data;

@@ -22,12 +22,10 @@
 #include "Asset/Model.h"
 #include "Asset/TextureAsset.h"
 #include "Mesh/Mesh.h"
-#include "Scene/SceneIO.h"
-
-#include "ECS/ECS.hpp"
-#include "Utils/View.h"
 
 #include "Graphics/RenderPass.h"
+
+#include "entt/entt.hpp"
 
 std::shared_ptr<MeshStatic> mesh_static_loader(std::string filedir) {
   assert(filedir.substr(filedir.find_last_of('.'), filedir.size() - 1) ==
@@ -142,10 +140,10 @@ int main() {
   } pipes;
   struct {
     Buffer proj_view;
-    Buffer models;
-    Buffer material_ids;
+    // Buffer models;
+    // Buffer material_ids;
 
-    Buffer materials;
+    // Buffer materials;
     Buffer g_buffer_handles;
     Buffer active_material_id;
   } buffs;
@@ -156,12 +154,7 @@ int main() {
   struct {
   } renderbuffs;
 
-  ECSmanager ecs;
-  ecs.register_component<Buffer>();
-  ecs.register_component<Pipeline>();
-  ecs.register_component<Framebuffer>();
-  ecs.register_component<Texture_2D>();
-
+  entt::registry registry;
   Framebuffer shadow_pass_fbo(width, height, {},
                               FBOattach(textures.shadow_map, true),
                               DepthStencilAttachType::ONLY_DEPTH);
@@ -171,39 +164,22 @@ int main() {
       glm::perspective(45.f, (float)width / height, near_far[0], near_far[1]);
   // constexpr int num_demo_meshes = 2;
   auto sphere_model = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
-  std::vector<LoadedMaterialPBR> materials;
+  std::vector<MaterialEntity> material_ids;
   for (MaterialPBR mat : sphere_model->materials) {
-    materials.push_back(LoadedMaterialPBR(mat));
-    materials.back().activate();
+    auto entity = registry.create();
+    registry.emplace<LoadedMaterialPBR>(entity, mat);
+    registry.get<LoadedMaterialPBR>(entity).activate();
+    material_ids.push_back(entity);
   }
-  struct DemoMesh {
-    MeshStaticAsset mesh;
-    glm::mat4 model;
-    uint32_t mat_id;
-    DemoMesh(MeshStaticAsset mesh, glm::mat4 model, uint32_t mat_id)
-        : mesh(mesh), model(model), mat_id(mat_id) {}
-  };
-  std::vector<DemoMesh> demo_meshes;
-  // ecs.register_component<MaterialPBR>();
-  // ecs.register_component<LoadedMaterialPBR>();
-  // for (MaterialPBR material : sphere_model->materials) {
-  //   ecs.new_entity(material);
-  // }
-  // for (auto& mesh_mat : sphere_model->meshes){
-  //   ecs.new_entity(MeshStatic(mesh_mat.first));
-  // }
-  demo_meshes.push_back(
-      DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(
-                   MeshStatic(sphere_model->meshes.front().first))),
-               glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)),
-               sphere_model->meshes.front().second));
 
-  // demo_meshes.push_back(
-  //     DemoMesh(MeshStaticAsset(std::make_unique<MeshStatic>(
-  //                  MeshStatic(sphere_model->meshes.front().first))),
-  //              glm::translate(glm::mat4(1), glm::vec3(0.0, 1.0, 2.0)),
-  //              materials.size() - 1));
-  // demo_meshes.back().mesh.get_asset();
+  for(auto& mesh : sphere_model->meshes){
+    auto entity = registry.create();
+    registry.emplace<MeshStatic>(entity, mesh.first);
+    registry.emplace<MaterialEntity>(entity, material_ids[mesh.second]);
+    registry.emplace<Position>(entity, glm::vec3(0.0, 1.0, 2.0));
+  }
+
+
 
   // FURTHER INITIALIZATIONS
 
@@ -214,69 +190,61 @@ int main() {
   buffs.proj_view = Buffer(sizeof(glm::mat4) * 2, NULL);
   buffs.proj_view.modify(glm::value_ptr(projection_mat), sizeof(glm::mat4), 0);
 
-  buffs.models = Buffer(sizeof(glm::mat4) * demo_meshes.size(), NULL);
 
-  buffs.material_ids = Buffer(sizeof(uint32_t) * demo_meshes.size(), NULL);
-
-  buffs.materials = Buffer(sizeof(glm::vec4) * materials.size(), NULL);
-  buffs.materials.modify(materials.data(), sizeof(glm::vec4) * materials.size(),
-                         0);
+  // buffs.materials = Buffer(sizeof(glm::vec4) * materials.size(), NULL);
+  // buffs.materials.modify(materials.data(), sizeof(glm::vec4) * materials.size(),
+  //                        0);
 
   Buffer indirect_draw_buffer =
       MeshStatic::get_static_meshes_holder().get_indirect_draw_buffer();
-  Entity indirect_draw_buf = ecs.new_entity(indirect_draw_buffer);
-  Entity proj_view_buf = ecs.new_entity(buffs.proj_view);
-  Entity models_buf = ecs.new_entity(buffs.models);
-  Entity material_ids_buf = ecs.new_entity(buffs.material_ids);
-  Entity materials_buf = ecs.new_entity(buffs.materials);
 
-  Entity shadow_map_tex = ecs.new_entity(textures.shadow_map);
+  auto indirect_draw_buf = registry.create();
+  registry.emplace<Buffer>(indirect_draw_buf, indirect_draw_buffer);
+  auto proj_view_buf = registry.create();
+  registry.emplace<Buffer>(proj_view_buf, buffs.proj_view);
+  auto materials_buf = registry.create();
+  registry.emplace<Buffer>(materials_buf);
+  auto shadow_map_tex = registry.create();
+  registry.emplace<Texture_2D>(shadow_map_tex, textures.shadow_map);
+  auto active_material_id_buf = registry.create();
+  registry.emplace<Buffer>(active_material_id_buf, buffs.active_material_id);
+  auto g_buffer_handles_buf = registry.create();
+  registry.emplace<Buffer>(g_buffer_handles_buf, buffs.g_buffer_handles);
 
-  Entity active_material_id_buf = ecs.new_entity(buffs.active_material_id);
-  Entity g_buffer_handles_buf = ecs.new_entity(buffs.g_buffer_handles);
-
-  GeometryPass geometry_pass(width, height, indirect_draw_buf, proj_view_buf,
-                             models_buf, material_ids_buf);
-  geometry_pass.init(ecs);
-
-  *ecs.get_component<Buffer>(g_buffer_handles_buf) =
-      Buffer(sizeof(uint64_t) * 2, NULL);
+  GeometryPass geometry_pass(width, height, indirect_draw_buf, proj_view_buf);
+  geometry_pass.init(registry);
   std::array<uint64_t, 2> gbuff_handles = {
-      ecs.get_component<Texture_2D>(geometry_pass.g_pos_tex)->get_handle(),
-      ecs.get_component<Texture_2D>(geometry_pass.g_norm_tex)->get_handle()};
-  ecs.get_component<Buffer>(g_buffer_handles_buf)
-      ->modify(gbuff_handles.data(), sizeof(uint64_t) * 2, 0);
+      registry.get<Texture_2D>(geometry_pass.g_pos_tex).get_handle(),
+      registry.get<Texture_2D>(geometry_pass.g_norm_tex).get_handle()};
+  registry.patch<Buffer>(
+      g_buffer_handles_buf, [&gbuff_handles](Buffer &buffer) {
+        buffer = Buffer(sizeof(uint64_t) * gbuff_handles.size(), NULL);
+        buffer.modify(gbuff_handles.data(), sizeof(uint64_t) * 2, 0);
+      });
 
-  *ecs.get_component<Buffer>(active_material_id_buf) =
-      Buffer(sizeof(uint32_t), NULL);
+  registry.get<Buffer>(active_material_id_buf) = Buffer(sizeof(uint32_t), NULL);
 
-  ecs.register_component<glm::mat4>();
-  ecs.register_component<std::vector<glm::vec4>>();
-  ecs.register_component<std::vector<LoadedMaterialPBR>>();
 
-  Entity lightspacetrans_entity = ecs.new_entity(glm::mat4(1));
-  Entity materials_vec_entity = ecs.new_entity(materials);
-
-  MaterialPass material_pass(width, height, materials_buf,
-                             active_material_id_buf, materials_vec_entity);
-  material_pass.init(ecs);
+  MaterialPass material_pass(width, height,
+                             active_material_id_buf);
+  material_pass.init(registry);
   TextureToDepthPass texture_to_depth_pass(geometry_pass.material_depth_tex,
                                            material_pass.material_pass_fbo);
-  texture_to_depth_pass.init(ecs);
+  texture_to_depth_pass.init(registry);
 
   LightingPass lighting_pass(geometry_pass.g_pos_tex, geometry_pass.g_norm_tex,
                              material_pass.material_pass_out_tex, width,
                              height);
-  lighting_pass.init(ecs);
+  lighting_pass.init(registry);
 
-  for (int i = 0; i < demo_meshes.size(); ++i) {
-    ecs.get_component<Buffer>(models_buf)
-        ->modify(glm::value_ptr(demo_meshes[i].model), sizeof(glm::mat4),
-                 sizeof(glm::mat4) * i);
-    uint32_t actual_mat_id = demo_meshes[i].mat_id + 1;
-    ecs.get_component<Buffer>(material_ids_buf)
-        ->modify(&actual_mat_id, sizeof(uint32_t), sizeof(uint32_t) * i);
-  }
+  // for (int i = 0; i < demo_meshes.size(); ++i) {
+  //   registry.get<Buffer>(models_buf)
+  //       .modify(glm::value_ptr(demo_meshes[i].model), sizeof(glm::mat4),
+  //                sizeof(glm::mat4) * i);
+  //   uint32_t actual_mat_id = demo_meshes[i].mat_id + 1;
+  //   registry.get<Buffer>(material_ids_buf)
+  //       .modify(&actual_mat_id, sizeof(uint32_t), sizeof(uint32_t) * i);
+  // }
 
   // PIPELINES SETUP
 
@@ -286,16 +254,16 @@ int main() {
   pipes.shadow_mapper.bind_pipeline_ssbo_block("Transformations", 2);
 
   // binding buffers to shader blocks
-  auto geometry = ecs.get_component<Pipeline>(geometry_pass.geometry_pipe);
+  auto geometry = &registry.get<Pipeline>(geometry_pass.geometry_pipe);
   buffs.proj_view.bind_base(
       GL_UNIFORM_BUFFER,
       geometry->get_pipeline_uniform_block_binding("Matrices"));
-  buffs.models.bind_base(
-      GL_SHADER_STORAGE_BUFFER,
-      geometry->get_pipeline_ssbo_block_binding("Transformations"));
-  buffs.material_ids.bind_base(
-      GL_SHADER_STORAGE_BUFFER,
-      geometry->get_pipeline_ssbo_block_binding("MaterialIds"));
+  // buffs.models.bind_base(
+  //     GL_SHADER_STORAGE_BUFFER,
+  //     geometry->get_pipeline_ssbo_block_binding("Transformations"));
+  // buffs.material_ids.bind_base(
+  //     GL_SHADER_STORAGE_BUFFER,
+  //     geometry->get_pipeline_ssbo_block_binding("MaterialIds"));
 
   double delta_time = 0.0;
 
@@ -312,6 +280,8 @@ int main() {
   glm::mat4 LIGHTVIEW = glm::lookAt(LIGHTPOS, glm::vec3(0), glm::vec3(0, 1, 0));
   // pipes.material.set_uniform_vec<3,float>(pipes.material.get_uniform_loc("lightPos"),
   // (float*)&LIGHTPOS);
+  auto lightspacetrans_entity = registry.create();
+  registry.emplace<glm::mat4>(lightspacetrans_entity, glm::mat4(1));
 
   while (!glfwWindowShouldClose(window) &&
          !(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)) {
@@ -330,30 +300,30 @@ int main() {
     // todo do in better ways
     buffs.proj_view.modify(glm::value_ptr(LIGHTVIEW), sizeof(glm::mat4),
                            sizeof(glm::mat4));
-    *ecs.get_component<glm::mat4>(lightspacetrans_entity) =
+    registry.get<glm::mat4>(lightspacetrans_entity) =
         compute_dir_lightspace(projection_mat, curr_view, LIGHTPOS);
     pipes.shadow_mapper.set_uniform_mat<4, 4>(
         pipes.shadow_mapper.get_uniform_loc("lightspace"),
-        glm::value_ptr(*ecs.get_component<glm::mat4>(lightspacetrans_entity)));
+        glm::value_ptr(registry.get<glm::mat4>(lightspacetrans_entity)));
 
-    ecs.get_component<Buffer>(indirect_draw_buf)->bind(GL_DRAW_INDIRECT_BUFFER);
+    registry.get<Buffer>(indirect_draw_buf).bind(GL_DRAW_INDIRECT_BUFFER);
     MeshStatic::get_static_meshes_holder().multi_draw();
 
     buffs.proj_view.modify(glm::value_ptr(curr_view), sizeof(glm::mat4),
                            sizeof(glm::mat4));
 
-    geometry_pass.execute(ecs);
+    geometry_pass.execute(registry);
 
-    texture_to_depth_pass.execute(ecs);
+    texture_to_depth_pass.execute(registry);
 
-    material_pass.execute(ecs);
+    material_pass.execute(registry);
 
-    lighting_pass.execute(ecs);
+    lighting_pass.execute(registry);
 
     default_fbo.bind(GL_FRAMEBUFFER);
     default_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     tex_drawer(
-        *ecs.get_component<Texture_2D>(lighting_pass.lighting_pass_out_tex));
+        registry.get<Texture_2D>(lighting_pass.lighting_pass_out_tex));
 
     glfwSwapBuffers(window);
     glfwPollEvents();

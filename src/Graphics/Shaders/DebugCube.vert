@@ -44,4 +44,4 @@ void main()
     normal = mat3(transpose(inverse(model_matrix))) * n;
     uv = vec2(uv_vals[3*top + idx]);
     gl_Position = projection_matrix * view_matrix * vec4(frag_pos, 1.0);
-};
+}
