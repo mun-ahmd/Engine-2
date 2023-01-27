@@ -12,3 +12,4 @@ lib/glfw/build/*
 scene.json
 Engine2
 .cache/*
+compile_commands.json

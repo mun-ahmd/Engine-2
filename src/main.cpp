@@ -111,11 +111,11 @@ void printBlockLimits() {
   glGetIntegerv(GL_MAX_COMPUTE_UNIFORM_BLOCKS, &maxBlocks);
   std::cout << "\nMax compute uniform blocks: " << maxBlocks;
   glGetIntegerv(GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS, &maxBlocks);
-  std::cout << "\nMax compute shader storage blocks: " << maxBlocks;
+  std::cout << "\nMax compute shader storage blocks: " << maxBlocks
+            << std::endl;
 }
 
 int main() {
-
   std::cout << std::filesystem::current_path();
   GLFWwindow *window =
       Graphics::InitiateGraphicsLib({"GL_ARB_bindless_texture"});
@@ -163,7 +163,7 @@ int main() {
   glm::mat4 projection_mat =
       glm::perspective(45.f, (float)width / height, near_far[0], near_far[1]);
   // constexpr int num_demo_meshes = 2;
-  auto sphere_model = loadGLTF("3DModelData/brick sphere/bricksphere.gltf");
+  auto sphere_model = loadGLTF("3DModelData/cube/cube.gltf");
   std::vector<MaterialEntity> material_ids;
   for (MaterialPBR mat : sphere_model->materials) {
     auto entity = registry.create();
@@ -172,14 +172,12 @@ int main() {
     material_ids.push_back(entity);
   }
 
-  for(auto& mesh : sphere_model->meshes){
+  for (auto &mesh : sphere_model->meshes) {
     auto entity = registry.create();
     registry.emplace<MeshStatic>(entity, mesh.first);
     registry.emplace<MaterialEntity>(entity, material_ids[mesh.second]);
     registry.emplace<Position>(entity, glm::vec3(0.0, 1.0, 2.0));
   }
-
-
 
   // FURTHER INITIALIZATIONS
 
@@ -190,9 +188,9 @@ int main() {
   buffs.proj_view = Buffer(sizeof(glm::mat4) * 2, NULL);
   buffs.proj_view.modify(glm::value_ptr(projection_mat), sizeof(glm::mat4), 0);
 
-
   // buffs.materials = Buffer(sizeof(glm::vec4) * materials.size(), NULL);
-  // buffs.materials.modify(materials.data(), sizeof(glm::vec4) * materials.size(),
+  // buffs.materials.modify(materials.data(), sizeof(glm::vec4) *
+  // materials.size(),
   //                        0);
 
   Buffer indirect_draw_buffer =
@@ -213,26 +211,26 @@ int main() {
 
   GeometryPass geometry_pass(width, height, indirect_draw_buf, proj_view_buf);
   geometry_pass.init(registry);
+  registry.get<Buffer>(active_material_id_buf) = Buffer(sizeof(uint32_t), NULL);
+
+  MaterialPass material_pass(width, height, active_material_id_buf,
+                             geometry_pass.visibility_tex,
+                             geometry_pass.transformations_buf, proj_view_buf);
+  material_pass.init(registry);
   std::array<uint64_t, 2> gbuff_handles = {
-      registry.get<Texture_2D>(geometry_pass.g_pos_tex).get_handle(),
-      registry.get<Texture_2D>(geometry_pass.g_norm_tex).get_handle()};
+      registry.get<Texture_2D>(material_pass.g_pos_tex).get_handle(),
+      registry.get<Texture_2D>(material_pass.g_norm_tex).get_handle()};
   registry.patch<Buffer>(
       g_buffer_handles_buf, [&gbuff_handles](Buffer &buffer) {
         buffer = Buffer(sizeof(uint64_t) * gbuff_handles.size(), NULL);
         buffer.modify(gbuff_handles.data(), sizeof(uint64_t) * 2, 0);
       });
 
-  registry.get<Buffer>(active_material_id_buf) = Buffer(sizeof(uint32_t), NULL);
-
-
-  MaterialPass material_pass(width, height,
-                             active_material_id_buf);
-  material_pass.init(registry);
   TextureToDepthPass texture_to_depth_pass(geometry_pass.material_depth_tex,
                                            material_pass.material_pass_fbo);
   texture_to_depth_pass.init(registry);
 
-  LightingPass lighting_pass(geometry_pass.g_pos_tex, geometry_pass.g_norm_tex,
+  LightingPass lighting_pass(material_pass.g_pos_tex, material_pass.g_norm_tex,
                              material_pass.material_pass_out_tex, width,
                              height);
   lighting_pass.init(registry);
@@ -322,8 +320,7 @@ int main() {
 
     default_fbo.bind(GL_FRAMEBUFFER);
     default_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    tex_drawer(
-        registry.get<Texture_2D>(lighting_pass.lighting_pass_out_tex));
+    tex_drawer(registry.get<Texture_2D>(lighting_pass.lighting_pass_out_tex));
 
     glfwSwapBuffers(window);
     glfwPollEvents();

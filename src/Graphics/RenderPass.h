@@ -24,10 +24,10 @@ private:
   int height;
 
 public:
-  entt::entity g_pos_tex;
-  entt::entity g_norm_tex;
   entt::entity visibility_tex;
   entt::entity g_buffer_fbo;
+  entt::entity transformations_buf;
+  entt::entity interpolate_tex;
   entt::entity material_depth_tex;
   entt::entity geometry_pipe;
 
@@ -37,18 +37,11 @@ public:
         proj_view_buf(proj_view_buf) {}
 
   void init(entt::registry &registry) override {
-    Texture_2D g_pos = Texture_2D(width, height, GL_RGB32F);
-    g_pos.make_handle_resident();
-    registry.emplace<Texture_2D>(g_pos_tex, g_pos);
-    Texture_2D g_norm = Texture_2D(width, height, GL_RGB32F);
-    g_norm.make_handle_resident();
-    g_norm_tex = registry.create();
-    registry.emplace<Texture_2D>(g_norm_tex, g_norm);
     Texture_2D material_depth = Texture_2D(width, height, GL_RGB32F);
     material_depth.make_handle_resident();
     visibility_tex = registry.create();
     registry.emplace<Texture_2D>(visibility_tex,
-                                 Texture_2D(width, height, GL_R32UI));
+                                 Texture_2D(width, height, GL_RG32UI));
     registry.get<Texture_2D>(visibility_tex).make_handle_resident();
 
     material_depth_tex = registry.create();
@@ -56,10 +49,14 @@ public:
     Renderbuffer geometry_pass_depth =
         Renderbuffer(width, height, GL_DEPTH24_STENCIL8);
 
+    interpolate_tex = registry.create();
+    registry.emplace<Texture_2D>(interpolate_tex,
+                                 Texture_2D(width, height, GL_RGB));
+
     Framebuffer g_buffer(
         width, height,
-        {FBOattach(g_pos, true), FBOattach(g_norm, true),
-         FBOattach(registry.get<Texture_2D>(visibility_tex), true),
+        {FBOattach(registry.get<Texture_2D>(visibility_tex), true),
+         FBOattach(registry.get<Texture_2D>(interpolate_tex), true),
          FBOattach(material_depth, true)},
         FBOattach(geometry_pass_depth, false),
         DepthStencilAttachType::BOTH_DEPTH_STENCIL);
@@ -79,8 +76,11 @@ public:
       material_ids.push_back(
           static_cast<uint32_t>(registry.get<MaterialEntity>(entity)) + 1);
     }
+    transformations_buf = registry.create();
     Buffer Transformations =
         Buffer(sizeof(glm::mat4) * transforms.size(), transforms.data());
+    registry.emplace<Buffer>(transformations_buf, Transformations);
+
     Buffer MaterialIds =
         Buffer(sizeof(uint32_t) * material_ids.size(), material_ids.data());
     Transformations.bind_base(GL_SHADER_STORAGE_BUFFER, 2);
@@ -104,7 +104,7 @@ public:
     g_buffer.bind(GL_FRAMEBUFFER);
     g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     GLuint clearcolor[4] = {0, 0, 0, 0};
-    glClearBufferuiv(GL_COLOR, 2, clearcolor);
+    glClearBufferuiv(GL_COLOR, 0, clearcolor);
     geometry.bind();
 
     indirect_draw_buffer.bind(GL_DRAW_INDIRECT_BUFFER);
@@ -151,6 +151,9 @@ class MaterialPass : public RenderPass {
 
 private:
   entt::entity active_material_id_buf;
+  entt::entity visibility_tex;
+  entt::entity transformations_buf;
+  entt::entity proj_view_buf;
   int width;
   int height;
 
@@ -159,12 +162,28 @@ public:
   entt::entity material_pass_fbo;
   entt::entity material_pass_out_tex;
   entt::entity current_material_info_buffer;
+  entt::entity g_pos_tex;
+  entt::entity g_norm_tex;
 
-  MaterialPass(int width, int height, entt::entity active_material_id_buf)
+  MaterialPass(int width, int height, entt::entity active_material_id_buf,
+               entt::entity visibility_tex, entt::entity transformations_buf,
+               entt::entity proj_view_buf)
       : width(width), height(height),
-        active_material_id_buf(active_material_id_buf) {}
+        active_material_id_buf(active_material_id_buf),
+        visibility_tex(visibility_tex),
+        transformations_buf(transformations_buf), proj_view_buf(proj_view_buf) {
+  }
 
   void init(entt::registry &ecs) override {
+
+    Texture_2D g_pos = Texture_2D(width, height, GL_RGB32F);
+    g_pos.make_handle_resident();
+    g_pos_tex = ecs.create();
+    ecs.emplace<Texture_2D>(g_pos_tex, g_pos);
+    Texture_2D g_norm = Texture_2D(width, height, GL_RGB32F);
+    g_norm.make_handle_resident();
+    g_norm_tex = ecs.create();
+    ecs.emplace<Texture_2D>(g_norm_tex, g_norm);
     Pipeline material = Pipeline(R"(src/Graphics/Shaders/MaterialShader.vert)",
                                  R"(src/Graphics/Shaders/MaterialShader.frag)");
     material.change_depth_func(GL_EQUAL);
@@ -173,10 +192,36 @@ public:
     material.bind_pipeline_uniform_block("MaterialID", 2);
     material.add_pipeline_uniform_block("Materials");
     material.bind_pipeline_uniform_block("Materials", 4);
+    material.add_pipeline_ssbo_block("IndirectDrawBuffer");
+    material.bind_pipeline_ssbo_block("IndirectDrawBuffer", 10);
+    material.add_pipeline_ssbo_block("IndicesData");
+    material.bind_pipeline_ssbo_block("IndicesData", 11);
+    material.add_pipeline_ssbo_block("VertexData");
+    material.bind_pipeline_ssbo_block("VertexData", 12);
+    material.add_pipeline_uniform_block("Matrices");
+    material.bind_pipeline_uniform_block("Matrices", 1);
+    material.add_pipeline_ssbo_block("Transformations");
+    material.bind_pipeline_ssbo_block("Transformations", 2);
+
+    MeshStatic::get_static_meshes_holder().indirect_draw_info.bind_base(
+        GL_SHADER_STORAGE_BUFFER, 10);
+    MeshStatic::get_static_meshes_holder().indices.bind_base(
+        GL_SHADER_STORAGE_BUFFER, 11);
+    MeshStatic::get_static_meshes_holder().vertices.bind_base(
+        GL_SHADER_STORAGE_BUFFER, 12);
 
     ecs.get<Buffer>(active_material_id_buf)
         .bind_base(GL_UNIFORM_BUFFER,
                    material.get_pipeline_uniform_block_binding("MaterialID"));
+
+    ecs.get<Texture_2D>(visibility_tex).make_handle_resident();
+    material.set_uniform<uint64_t>(
+        material.get_uniform_loc("visibility_tex"),
+        ecs.get<Texture_2D>(visibility_tex).get_handle());
+
+    glm::vec2 width_height = glm::vec2((float)width, (float)height);
+    material.set_uniform_vec<2, float>(material.get_uniform_loc("width_height"),
+                                       (float *)&width_height);
 
     material_pipe = ecs.create();
     ecs.emplace<Pipeline>(material_pipe, material);
@@ -187,11 +232,13 @@ public:
     Renderbuffer material_pass_depth =
         Renderbuffer(width, height, GL_DEPTH_COMPONENT32F);
     material_pass_fbo = ecs.create();
-    ecs.emplace<Framebuffer>(material_pass_fbo,
-                             Framebuffer(width, height,
-                                         {FBOattach(material_pass_out, true)},
-                                         FBOattach(material_pass_depth, false),
-                                         DepthStencilAttachType::ONLY_DEPTH));
+    ecs.emplace<Framebuffer>(
+        material_pass_fbo,
+        Framebuffer(width, height,
+                    {FBOattach(material_pass_out, true), FBOattach(g_pos, true),
+                     FBOattach(g_norm, true)},
+                    FBOattach(material_pass_depth, false),
+                    DepthStencilAttachType::ONLY_DEPTH));
 
     Buffer current_material_info(sizeof(LoadedMaterialPBR::BufferDataPBR),
                                  NULL);

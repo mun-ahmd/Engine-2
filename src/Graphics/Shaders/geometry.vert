@@ -20,20 +20,18 @@ layout (std430) buffer MaterialIds
     uint material_ids[];
 };
 
-out vec3 normal;
-out vec2 uv;
-out vec3 frag_pos;
+out vec3 inter;
 out flat uint mat_id;
-out flat uint tri_id;
+out flat uint cluster_id;
+out vec4 view_space;
 
 void main()
 {
     mat4 model = models[gl_BaseInstanceARB];
     gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);
-	normal = normalize(transpose(inverse(mat3(model))) * aNorm);
-    uv = aUV;
+    vec3 interpolations_verts[3] = vec3[3](vec3(1,0,0), vec3(0,1,0), vec3(0,0,1));
+    inter = vec3(1) - interpolations_verts[gl_VertexID%3];
     mat_id = material_ids[gl_BaseInstanceARB];
-    uint tri_index = uint(gl_VertexID - gl_BaseVertexARB) / 3; 
-    tri_id = (uint(gl_DrawIDARB) << 8) | (tri_index << 1) | 1;
-    frag_pos = (model * vec4(aPos,1)).xyz;
+    cluster_id = uint(gl_DrawIDARB);
+    view_space = view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }
