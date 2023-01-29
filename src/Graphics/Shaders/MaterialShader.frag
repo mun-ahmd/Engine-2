@@ -64,16 +64,6 @@ vec3 worldToClipSpace(vec4 world) {
   return vec3(clip.xy * invw, 1.0 / view_space.z);
 }
 
-float triArea(vec2 v1, vec2 v2, vec2 v3) {
-  // return (v3.x - v1.x) * (v2.y - v1.y) - (v3.y - v1.y) * (v2.x - v1.x);
-  float a = distance(v2, v3);
-  float b = distance(v1, v3);
-  float c = distance(v1, v2);
-  float s = (a + b + c) / 2;
-  // heron's formula:
-  return sqrt(s * (s - a) * (s - b) * (s - c));
-}
-
 struct BarycentricDeriv {
   vec3 m_lambda;
   vec3 m_ddx;
@@ -139,10 +129,10 @@ vec3 InterpolateWithDeriv(BarycentricDeriv deriv, float v0, float v1,
 }
 
 void main() {
-  // fragcolor = texture(baseColor, texcoords);
   uint id = texture(visibility_tex, texcoords).r;
   uint cluster_id = id >> 8;
   uint tri_id = (id << 24) >> 25;
+  uint flag = id & 1;
 
   IndirectDrawData indirect = indirect_draw[cluster_id];
   uint index = indirect.firstIndex + tri_id * 3;
@@ -166,10 +156,9 @@ void main() {
       InterpolateWithDeriv(bderiv, vert0.normyz_uv.w, vert1.normyz_uv.w,
                            vert2.normyz_uv.w)};
 
-  albedo.rgb = textureGrad(baseColor, vec2(uv_interps[0].x, uv_interps[1].x),
+  albedo.rgb = (baseColorFac * textureGrad(baseColor, vec2(uv_interps[0].x, uv_interps[1].x),
                            vec2(uv_interps[0].y, uv_interps[1].y),
-                           vec2(uv_interps[0].z, uv_interps[1].z))
-                   .rgb;
+                           vec2(uv_interps[0].z, uv_interps[1].z))).rgb;
 
   position.rgb = bderiv.m_lambda.x * world0.xyz +
                  bderiv.m_lambda.y * world1.xyz +

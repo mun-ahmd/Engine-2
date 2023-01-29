@@ -1,12 +1,16 @@
 #include "Graphics/Graphics_2.h"
 #include "Mesh.h"
 #include "glad/glad.h"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
 #include <numeric>
+#include <utility>
 #include <vector>
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -155,19 +159,19 @@ std::vector<MaterialPBR> loadMaterials(std::string gltfFile) {
         curr.baseColorTex =
             std::filesystem::path(gltfFile).parent_path().string() +
             std::filesystem::path::preferred_separator +
-            gltf["images"][baseColorTexture["source"].get<int>()]["uri"]
-                .get<std::string>();
+            std::filesystem::path(gltf["images"][baseColorTexture["source"].get<int>()]["uri"]
+                .get<std::string>()).string();
       }
       if (currMetallicRoughness.contains("metallicRoughnessTexture")) {
         json metallicRoughnessTexture =
             (gltf["textures"]
                  [currMetallicRoughness["metallicRoughnessTexture"]["index"]
                       .get<int>()]);
-        curr.baseColorTex =
+        curr.metallicRoughnessTex =
             std::filesystem::path(gltfFile).parent_path().string() +
             std::filesystem::path::preferred_separator +
-            gltf["images"][metallicRoughnessTexture["source"].get<int>()]["uri"]
-                .get<std::string>();
+            std::filesystem::path(gltf["images"][metallicRoughnessTexture["source"].get<int>()]["uri"]
+                .get<std::string>()).string();
       }
       if (currMetallicRoughness.contains("baseColorFactor")) {
         auto baseColor =
@@ -186,13 +190,14 @@ std::vector<MaterialPBR> loadMaterials(std::string gltfFile) {
     }
 
     if (mat->contains("normalTexture")) {
-      json metallicRoughnessTexture =
+      json normalTexture =
           (gltf["textures"][(*mat)["normalTexture"]["index"].get<int>()]);
-      curr.baseColorTex =
+      curr.normalMap =
           std::filesystem::path(gltfFile).parent_path().string() +
           std::filesystem::path::preferred_separator +
-          gltf["images"][metallicRoughnessTexture["source"].get<int>()]["uri"]
-              .get<std::string>();
+          std::filesystem::path(gltf["images"][normalTexture["source"].get<int>()]["uri"]
+              .get<std::string>()).string();
+          
       if ((*mat)["normalTexture"].contains("scale")) {
         curr.normalScale = (*mat)["normalTexture"]["scale"].get<float>();
       }
@@ -202,7 +207,6 @@ std::vector<MaterialPBR> loadMaterials(std::string gltfFile) {
   std::cout << materials.front().baseColorTex << std::endl;
   return materials;
 }
-
 
 std::optional<ModelData> loadGLTF(const char *filepath) {
   Model model;
@@ -230,14 +234,45 @@ std::optional<ModelData> loadGLTF(const char *filepath) {
   if (!ret) {
     std::cerr << "glTF: Failed to parse file: " << filepath << " \n";
     return std::nullopt;
+    
   }
+
+  std::vector<std::pair<glm::mat4, int>> instances;
+  instances.reserve(model.nodes.size());
+  for (auto &node : model.nodes) {
+    if (node.mesh != -1) {
+      glm::mat4 curr_transform = glm::mat4(1.f);
+      if (node.matrix.size() == 16) {
+        curr_transform = glm::make_mat4(node.matrix.data());
+      } else {
+        glm::vec3 translation = glm::vec3(0.f);
+        glm::quat rotation = glm::quat(glm::vec3(0.0));
+        glm::vec3 scale = glm::vec3(1.f);
+
+        if (node.translation.size() == 3)
+          translation = glm::vec3(node.translation[0], -node.translation[1], node.translation[2]);
+        if (node.rotation.size() == 4)
+          rotation = glm::make_quat(node.rotation.data());
+        if (node.scale.size() == 3)
+          scale = glm::make_vec3(node.scale.data());
+
+        curr_transform =
+            glm::translate(curr_transform, translation) *
+            glm::mat4_cast(rotation) *
+            glm::scale(curr_transform, scale);
+        // curr_transform = glm::mat4(1);
+      }
+      instances.push_back(std::make_pair(curr_transform, node.mesh));
+    }
+  }
+
   auto loaded = loadMeshes(model);
   ModelData modelData;
   modelData.meshes = std::move(loaded);
-  modelData.materials = loadMaterials(filepath);
+  modelData.materials = std::move(loadMaterials(filepath));
+  modelData.instances = std::move(instances);
   return modelData;
 }
-
 
 // void modifyModelFormat(Model &model,
 //                        const std::vector<MeshData<Vertex3>> &data) {

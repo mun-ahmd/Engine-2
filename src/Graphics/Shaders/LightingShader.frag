@@ -45,7 +45,7 @@ void main() {
   vec3 diffuse = vec3(0.0);
   vec3 albedo = texture(albedo, texcoords).rgb;
   for(int i = 0; i < num_point_lights; i++){
-    diffuse +=  albedo * processPointLight(point_lights[i], normal, pos);
+    diffuse += albedo * processPointLight(point_lights[i], normal, pos);
   }
   fragcolor = vec4(diffuse, 1.0);
 }

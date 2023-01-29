@@ -268,6 +268,7 @@ public:
 struct ModelData {
   std::vector<std::pair<MeshData<Vertex3>, int>> meshes;
   std::vector<MaterialPBR> materials;
+  std::vector<std::pair<glm::mat4, int>> instances;
 };
 
 std::optional<ModelData> loadGLTF(const char *filepath);

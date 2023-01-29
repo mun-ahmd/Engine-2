@@ -20,18 +20,14 @@ layout (std430) buffer MaterialIds
     uint material_ids[];
 };
 
-out vec3 inter;
 out flat uint mat_id;
 out flat uint cluster_id;
-out vec4 view_space;
 
 void main()
 {
     mat4 model = models[gl_BaseInstanceARB];
     gl_Position = projection * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);
     vec3 interpolations_verts[3] = vec3[3](vec3(1,0,0), vec3(0,1,0), vec3(0,0,1));
-    inter = vec3(1) - interpolations_verts[gl_VertexID%3];
     mat_id = material_ids[gl_BaseInstanceARB];
     cluster_id = uint(gl_DrawIDARB);
-    view_space = view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }

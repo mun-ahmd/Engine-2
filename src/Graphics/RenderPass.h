@@ -25,9 +25,8 @@ private:
 
 public:
   entt::entity visibility_tex;
-  entt::entity g_buffer_fbo;
+  entt::entity geometry_fbo;
   entt::entity transformations_buf;
-  entt::entity interpolate_tex;
   entt::entity material_depth_tex;
   entt::entity geometry_pipe;
 
@@ -37,7 +36,7 @@ public:
         proj_view_buf(proj_view_buf) {}
 
   void init(entt::registry &registry) override {
-    Texture_2D material_depth = Texture_2D(width, height, GL_RGB32F);
+    Texture_2D material_depth = Texture_2D(width, height, GL_R32F);
     material_depth.make_handle_resident();
     visibility_tex = registry.create();
     registry.emplace<Texture_2D>(visibility_tex,
@@ -49,32 +48,27 @@ public:
     Renderbuffer geometry_pass_depth =
         Renderbuffer(width, height, GL_DEPTH24_STENCIL8);
 
-    interpolate_tex = registry.create();
-    registry.emplace<Texture_2D>(interpolate_tex,
-                                 Texture_2D(width, height, GL_RGB));
-
-    Framebuffer g_buffer(
+    Framebuffer geometry_framebuffer(
         width, height,
         {FBOattach(registry.get<Texture_2D>(visibility_tex), true),
-         FBOattach(registry.get<Texture_2D>(interpolate_tex), true),
          FBOattach(material_depth, true)},
         FBOattach(geometry_pass_depth, false),
         DepthStencilAttachType::BOTH_DEPTH_STENCIL);
-    g_buffer_fbo = registry.create();
-    registry.emplace<Framebuffer>(g_buffer_fbo, g_buffer);
+    geometry_fbo = registry.create();
+    registry.emplace<Framebuffer>(geometry_fbo, geometry_framebuffer);
 
-    auto meshes_view = registry.view<MeshStatic, Position, MaterialEntity>();
+    auto meshes_view =
+        registry.view<MeshStatic, Transformation, MaterialEntity>();
     std::vector<glm::mat4> transforms;
     transforms.reserve(meshes_view.size_hint());
     std::vector<uint32_t> material_ids;
     material_ids.reserve(meshes_view.size_hint());
     for (auto &entity : meshes_view) {
-      transforms.push_back(
-          glm::translate(glm::mat4(1.0), registry.get<Position>(entity)));
-      // todo adding 1 to material id is inconvenient and possible future bug
-      // causer but necessary to avoid 0s
+      transforms.push_back(registry.get<Transformation>(entity));
+      // todo adding 2 to material id is inconvenient and possible future bug
+      // causer but necessary as default depth clear sets depth buffer to 1
       material_ids.push_back(
-          static_cast<uint32_t>(registry.get<MaterialEntity>(entity)) + 1);
+          static_cast<uint32_t>(registry.get<MaterialEntity>(entity)) + 2);
     }
     transformations_buf = registry.create();
     Buffer Transformations =
@@ -98,15 +92,16 @@ public:
     registry.emplace<Pipeline>(geometry_pipe, geometry);
   }
   void execute(entt::registry &registry) override {
-    auto g_buffer = registry.get<Framebuffer>(g_buffer_fbo);
+    auto g_buffer = registry.get<Framebuffer>(geometry_fbo);
     auto geometry = registry.get<Pipeline>(geometry_pipe);
     auto indirect_draw_buffer = registry.get<Buffer>(indirect_draw_buf);
     g_buffer.bind(GL_FRAMEBUFFER);
-    g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    g_buffer.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     GLuint clearcolor[4] = {0, 0, 0, 0};
     glClearBufferuiv(GL_COLOR, 0, clearcolor);
     geometry.bind();
-
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     indirect_draw_buffer.bind(GL_DRAW_INDIRECT_BUFFER);
     MeshStatic::get_static_meshes_holder().multi_draw();
   }
@@ -162,6 +157,7 @@ public:
   entt::entity material_pass_fbo;
   entt::entity material_pass_out_tex;
   entt::entity current_material_info_buffer;
+  entt::entity material_pass_depth_renderbuf;
   entt::entity g_pos_tex;
   entt::entity g_norm_tex;
 
@@ -231,6 +227,9 @@ public:
     ecs.emplace<Texture_2D>(material_pass_out_tex, material_pass_out);
     Renderbuffer material_pass_depth =
         Renderbuffer(width, height, GL_DEPTH_COMPONENT32F);
+    material_pass_depth_renderbuf = ecs.create();
+    ecs.emplace<Renderbuffer>(material_pass_depth_renderbuf,
+                              material_pass_depth);
     material_pass_fbo = ecs.create();
     ecs.emplace<Framebuffer>(
         material_pass_fbo,
@@ -258,7 +257,7 @@ public:
 
     uint32_t i = 0;
     for (auto entity : materials_view) {
-      uint32_t material_id = i + 1;
+      uint32_t material_id = i + 2;
       ecs.get<Buffer>(active_material_id_buf)
           .modify(&material_id, sizeof(uint32_t), 0);
       auto curr = materials_view.begin() + i;
@@ -293,19 +292,10 @@ public:
         width(width), height(height) {}
 
   void init(entt::registry &ecs) override {
-    for (int x = -3; x < 3; x++) {
-      for (int y = -2; y < 2; y++) {
-        auto entity = ecs.create();
-        ecs.emplace<PointLight>(
-            entity,
-            PointLight(glm::vec3(3.0 * x, 4.0, 2.0 * y), 5.0,
-                       glm::vec3(sin(glfwGetTime() * x), cos(glfwGetTime() * y),
-                                 sin(glfwGetTime()) > cos(glfwGetTime())
-                                     ? sin(glfwGetTime())
-                                     : cos(glfwGetTime())),
-                       1.0));
-      }
-    }
+    auto entity = ecs.create();
+    ecs.emplace<PointLight>(
+        entity, PointLight(glm::vec3(0, 4, 0), 10.0, glm::vec3(1.0), 1.0));
+
     auto pointLightsView = ecs.view<PointLight>();
     std::vector<PointLight> pointLights;
     pointLights.reserve(pointLightsView.size());
@@ -328,6 +318,8 @@ public:
     pointLights.clear();
     pointLights.shrink_to_fit();
     point_lights_buffer.bind_base(GL_SHADER_STORAGE_BUFFER, 6);
+    nonshadow_point_lights_buf = ecs.create();
+    ecs.emplace<Buffer>(nonshadow_point_lights_buf, point_lights_buffer);
 
     std::array<uint64_t, 3> handles;
     int i = 0;
@@ -363,8 +355,14 @@ public:
         DepthStencilAttachType::ONLY_DEPTH);
   }
   void execute(entt::registry &ecs) override {
+    PointLight new_pt = PointLight(glm::vec3(2 * sin(glfwGetTime() * 0.4), 4.0,
+                                             2 * cos(glfwGetTime() * 0.5)),
+                                   10.0, glm::vec3(1.0), 1.0);
+    ecs.get<Buffer>(nonshadow_point_lights_buf)
+        .modify(&new_pt, sizeof(new_pt), sizeof(int) * 4);
     ecs.get<Pipeline>(lighting_pass_pipe).bind();
     ecs.get<Framebuffer>(lighting_pass_fbo).bind(GL_FRAMEBUFFER);
+    ecs.get<Framebuffer>(lighting_pass_fbo).clear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLES, 0, 3);
   }
 };

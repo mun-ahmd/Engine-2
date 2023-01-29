@@ -123,6 +123,9 @@ int main() {
   glfwGetWindowSize(window, &width, &height);
 
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_STENCIL_TEST);
+  glClearStencil(0);
+  glClearColor(1.0, 0.0, 0.0, 1.0);
   glViewport(0, 0, width, height);
   glDepthFunc(GL_LESS);
 
@@ -163,7 +166,7 @@ int main() {
   glm::mat4 projection_mat =
       glm::perspective(45.f, (float)width / height, near_far[0], near_far[1]);
   // constexpr int num_demo_meshes = 2;
-  auto sphere_model = loadGLTF("3DModelData/cube/cube.gltf");
+  auto sphere_model = loadGLTF("3DModelData/birchTree/birch.gltf");
   std::vector<MaterialEntity> material_ids;
   for (MaterialPBR mat : sphere_model->materials) {
     auto entity = registry.create();
@@ -172,11 +175,12 @@ int main() {
     material_ids.push_back(entity);
   }
 
-  for (auto &mesh : sphere_model->meshes) {
+  for (auto &node : sphere_model->instances) {
+    auto &mesh = sphere_model->meshes[node.second];
     auto entity = registry.create();
     registry.emplace<MeshStatic>(entity, mesh.first);
     registry.emplace<MaterialEntity>(entity, material_ids[mesh.second]);
-    registry.emplace<Position>(entity, glm::vec3(0.0, 1.0, 2.0));
+    registry.emplace<Transformation>(entity, node.first);
   }
 
   // FURTHER INITIALIZATIONS
@@ -319,7 +323,11 @@ int main() {
     lighting_pass.execute(registry);
 
     default_fbo.bind(GL_FRAMEBUFFER);
+
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
     default_fbo.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    Framebuffer::blit(registry.get<Framebuffer>(geometry_pass.geometry_fbo),
+                      default_fbo, GL_STENCIL_BUFFER_BIT, GL_NEAREST);
     tex_drawer(registry.get<Texture_2D>(lighting_pass.lighting_pass_out_tex));
 
     glfwSwapBuffers(window);

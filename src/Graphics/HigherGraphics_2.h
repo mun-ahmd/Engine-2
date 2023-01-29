@@ -23,6 +23,7 @@ public:
 };
 
 typedef glm::vec3 Position;
+typedef glm::mat4 Transformation;
 
 class CamHandler {
 private:
